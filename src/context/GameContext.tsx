@@ -369,17 +369,13 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return localStorage.getItem(LOCAL_STORAGE_KEY + '_autocollect') === 'true';
   });
 
-  // Trigger feedback banner
-  const triggerFeedback = useCallback((text: string, type: 'success' | 'warning' | 'info' | 'error' = 'success', details?: string[]) => {
-    const id = Date.now().toString() + Math.random().toString();
-    setFeedbackQueue((prev) => [...prev.slice(-3), { id, text, type, details }]);
-    setTimeout(() => {
-      setFeedbackQueue((prev) => prev.filter((item) => item.id !== id));
-    }, 4500);
+  // Pop up banner disabled per user request
+  const triggerFeedback = useCallback((_text: string, _type: 'success' | 'warning' | 'info' | 'error' = 'success', _details?: string[]) => {
+    // No pop-up banners after action or text completions
   }, []);
 
-  const dismissFeedback = (id: string) => {
-    setFeedbackQueue((prev) => prev.filter((item) => item.id !== id));
+  const dismissFeedback = (_id: string) => {
+    setFeedbackQueue([]);
   };
 
   // Derived financial metrics

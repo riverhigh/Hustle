@@ -3,7 +3,6 @@ import { GameProvider, useGame } from './context/GameContext';
 import { MainMenuView } from './components/menu/MainMenuView';
 import { HeaderDashboard } from './components/common/HeaderDashboard';
 import { BottomNavigation } from './components/common/BottomNavigation';
-import { FeedbackOverlay } from './components/common/FeedbackOverlay';
 import { PWABanner } from './components/pwa/PWABanner';
 import { RestModal } from './components/modals/RestModal';
 import { NewsModal } from './components/modals/NewsModal';
@@ -32,9 +31,6 @@ const MainAppContent: React.FC = () => {
           onOpenRest={() => setIsRestModalOpen(true)}
           onOpenNews={() => setIsNewsModalOpen(true)}
         />
-
-        {/* Floating Action Feedback Toasts */}
-        <FeedbackOverlay />
 
         {/* Interactive Main View Port */}
         <main className="flex-1 px-3.5 pt-3">
@@ -72,7 +68,6 @@ const AppRouter: React.FC = () => {
       <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex justify-center selection:bg-indigo-500 selection:text-white">
         <div className="w-full max-w-md sm:max-w-xl md:max-w-2xl min-h-screen flex flex-col bg-slate-950 shadow-2xl relative">
           <PWABanner />
-          <FeedbackOverlay />
           <MainMenuView />
         </div>
       </div>
