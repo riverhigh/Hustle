@@ -35,7 +35,7 @@ interface HeaderDashboardProps {
 }
 
 export const HeaderDashboard: React.FC<HeaderDashboardProps> = ({ onOpenRest, onOpenNews }) => {
-  const { player, netWorth, sleep, activeSlotId, manualSave, exitToMainMenu, setIsStoreModalOpen } = useGame();
+  const { player, netWorth, sleep, activeSlotId, manualSave, exitToMainMenu, setIsStoreModalOpen, setIsPhoneOpen } = useGame();
   const { isInstalled, isInstallable, isIOS, install } = usePWAInstall();
   const { needRefresh, isChecking, checkForUpdates, updateApp } = usePWAUpdate();
   const [showExitConfirm, setShowExitConfirm] = useState(false);

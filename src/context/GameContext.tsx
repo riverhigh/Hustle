@@ -35,6 +35,7 @@ import {
   INITIAL_GOALS,
   NEIGHBORHOODS,
   AI_OPPONENTS,
+  BUSINESS_TEMPLATES,
 } from '../constants/gameData';
 import {
   getAllSlotsMeta,
@@ -130,11 +131,24 @@ interface GameContextType {
 
   // Businesses
   startBusiness: (typeId: string, name: string) => boolean;
+  depositToBusiness: (businessId: string, amount: number) => boolean;
+  withdrawFromBusiness: (businessId: string, amount: number) => boolean;
   hireEmployee: (businessId: string, role: string, salary: number) => boolean;
   fireEmployee: (businessId: string, empId: string) => void;
   upgradeBusinessOffice: (businessId: string) => boolean;
   boostBusinessMarketing: (businessId: string, amount: number) => boolean;
   adjustBusinessPricing: (businessId: string, multiplier: number) => void;
+
+  // Weekly Career Jobs
+  applyWeeklyJob: (jobId: string) => boolean;
+  quitWeeklyJob: () => void;
+
+  // In-App iPhone
+  isPhoneOpen: boolean;
+  setIsPhoneOpen: (open: boolean) => void;
+  phoneActiveApp: 'home' | 'stocks' | 'bank' | 'scanner' | 'auctions';
+  setPhoneActiveApp: (app: 'home' | 'stocks' | 'bank' | 'scanner' | 'auctions') => void;
+  openPhoneApp: (app: 'home' | 'stocks' | 'bank' | 'scanner' | 'auctions') => void;
 
   // Events & Missions & System
   chooseEventOption: (choiceId: string) => void;
@@ -383,6 +397,13 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return localStorage.getItem(LOCAL_STORAGE_KEY + '_autocollect') === 'true';
   });
   const [isStoreModalOpen, setIsStoreModalOpen] = useState<boolean>(false);
+  const [isPhoneOpen, setIsPhoneOpen] = useState<boolean>(false);
+  const [phoneActiveApp, setPhoneActiveApp] = useState<'home' | 'stocks' | 'bank' | 'scanner' | 'auctions'>('home');
+
+  const openPhoneApp = useCallback((app: 'home' | 'stocks' | 'bank' | 'scanner' | 'auctions') => {
+    setPhoneActiveApp(app);
+    setIsPhoneOpen(true);
+  }, []);
 
   // Pop up banner disabled per user request
   const triggerFeedback = useCallback((_text: string, _type: 'success' | 'warning' | 'info' | 'error' = 'success', _details?: string[]) => {
@@ -400,7 +421,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return sum + (s ? s.price * h.shares : 0);
   }, 0);
   const totalPropertyValue = ownedProperties.reduce((sum, p) => sum + p.currentValue, 0);
-  const totalBusinessValue = ownedBusinesses.reduce((sum, b) => sum + (b.revenueMonthly * 12 + b.equipmentValue), 0);
+  const totalBusinessValue = ownedBusinesses.reduce((sum, b) => sum + (b.revenueMonthly * 12 + b.equipmentValue + (b.treasury || 0)), 0);
 
   const totalCreditDebt = creditCards.reduce((sum, c) => sum + c.balance, 0);
   const totalLoanDebt = loans.reduce((sum, l) => sum + l.remainingBalance, 0);
@@ -411,7 +432,9 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Monthly income & expenses estimation
   const monthlyRentalIncome = ownedProperties.reduce((sum, p) => sum + (p.tenant ? p.tenant.agreedRent : 0), 0);
   const monthlyBusinessProfits = ownedBusinesses.reduce((sum, b) => sum + Math.max(0, b.revenueMonthly - b.expensesMonthly), 0);
-  const monthlyIncome = monthlyRentalIncome + monthlyBusinessProfits;
+  const currentWeeklyJob = availableJobs.find((j) => j.id === player.activeWeeklyJobId);
+  const monthlySalaryIncome = currentWeeklyJob?.weeklySalary ? Math.round(currentWeeklyJob.weeklySalary * 4.33) : 0;
+  const monthlyIncome = monthlyRentalIncome + monthlyBusinessProfits + monthlySalaryIncome;
 
   const housingCost = HOUSING_TIERS.find((h) => h.tier === player.housingTier)?.costMonthly || 0;
   const transportCost = (TRANSPORTATION_TIERS.find((t) => t.tier === player.transportationTier)?.dailyCost || 0) * 30;
@@ -600,20 +623,53 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       })
     );
 
-    // 3. Businesses daily revenue generation
+    // 3. Businesses daily revenue generation (Accrues to corporate treasury)
     if (ownedBusinesses.length > 0) {
       setOwnedBusinesses((prev) =>
         prev.map((b) => {
           const dailyRevenue = Math.round((b.revenueMonthly / 30) * (0.85 + Math.random() * 0.3));
           const dailyExpense = Math.round(b.expensesMonthly / 30);
           const profit = dailyRevenue - dailyExpense;
-          if (profit > 0) {
-            setPlayer((p) => ({ ...p, cash: p.cash + profit }));
-          }
-          return b;
+          const currentTreasury = b.treasury ?? 15000;
+          const newTreasury = Math.max(0, currentTreasury + profit);
+          return {
+            ...b,
+            treasury: newTreasury,
+          };
         })
       );
     }
+
+    // 3b. Weekly salaried career payroll
+    setPlayer((prevPlayer) => {
+      if (!prevPlayer.activeWeeklyJobId) return prevPlayer;
+      const job = availableJobs.find((j) => j.id === prevPlayer.activeWeeklyJobId);
+      if (!job || job.payType !== 'weekly' || !job.weeklySalary) return prevPlayer;
+
+      const daysRemaining = (prevPlayer.weeklyJobDaysRemaining ?? 7) - 1;
+      if (daysRemaining <= 0) {
+        // Payday!
+        const salary = job.weeklySalary;
+        const energyCost = job.weeklyEnergyCost || 35;
+        const newEnergy = Math.max(10, prevPlayer.energy - energyCost);
+        triggerFeedback(`Weekly Payday: +$${salary.toLocaleString()}`, 'success', [
+          `Role: ${job.title}`,
+          `Energy Upkeep: -${energyCost}⚡`,
+          `Check your wallet for funds!`,
+        ]);
+        return {
+          ...prevPlayer,
+          cash: prevPlayer.cash + salary,
+          energy: newEnergy,
+          weeklyJobDaysRemaining: 7,
+        };
+      } else {
+        return {
+          ...prevPlayer,
+          weeklyJobDaysRemaining: daysRemaining,
+        };
+      }
+    });
 
     // 4. Rent accrual on properties
     let autoCollectedRent = 0;
@@ -1852,15 +1908,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Business operations
   const startBusiness = (typeId: string, name: string): boolean => {
-    const templates: Record<string, { category: string; cost: number; revenue: number; expenses: number }> = {
-      pressure_wash_pro: { category: 'Service', cost: 1200, revenue: 1800, expenses: 600 },
-      cleaning_crew: { category: 'Commercial', cost: 2500, revenue: 3200, expenses: 1100 },
-      landscaping_pros: { category: 'Outdoor', cost: 4500, revenue: 5400, expenses: 1800 },
-      tech_agency: { category: 'Digital', cost: 6000, revenue: 8500, expenses: 2400 },
-      moving_logistics: { category: 'Transport', cost: 12000, revenue: 16000, expenses: 5500 },
-    };
+    const template = BUSINESS_TEMPLATES.find((t) => t.id === typeId) || BUSINESS_TEMPLATES[0];
 
-    const template = templates[typeId] || templates['pressure_wash_pro'];
     if (player.cash < template.cost) {
       triggerFeedback(`Requires $${template.cost.toLocaleString()} initial startup capital!`, 'warning');
       return false;
@@ -1868,32 +1917,121 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     setPlayer((prev) => ({ ...prev, cash: prev.cash - template.cost }));
 
+    const initialTreasury = Math.round(template.cost * 0.1);
     const newBiz: Business = {
       id: 'biz_' + Date.now(),
-      typeId,
+      typeId: template.id,
       name,
       category: template.category,
       revenueMonthly: template.revenue,
       expensesMonthly: template.expenses,
-      customersCount: 12,
+      customersCount: 20,
       reputation: 60,
       officeTier: 1,
       equipmentValue: Math.round(template.cost * 0.7),
       employees: [],
       contracts: [],
       priceMultiplier: 1.0,
-      marketingBudgetMonthly: 150,
+      marketingBudgetMonthly: Math.round(template.revenue * 0.05),
+      treasury: initialTreasury,
     };
 
     setOwnedBusinesses((prev) => [...prev, newBiz]);
-    addPlayerXP(250);
-    addSkillXP('business', 40);
+    addPlayerXP(350);
+    addSkillXP('business', 50);
     triggerFeedback(`Launched ${name}!`, 'success', [
-      `Estimated Revenue: $${template.revenue}/mo`,
-      `Estimated Expenses: $${template.expenses}/mo`,
-      `Check the Hustle tab to manage operations!`,
+      `Initial Cost: $${template.cost.toLocaleString()}`,
+      `Est. Revenue: $${template.revenue.toLocaleString()}/mo`,
+      `Working Treasury Funded: $${initialTreasury.toLocaleString()}`,
     ]);
     return true;
+  };
+
+  const depositToBusiness = (businessId: string, amount: number): boolean => {
+    if (amount <= 0) return false;
+    if (player.cash < amount) {
+      triggerFeedback('Insufficient personal cash to deposit!', 'warning');
+      return false;
+    }
+
+    const biz = ownedBusinesses.find((b) => b.id === businessId);
+    if (!biz) return false;
+
+    setPlayer((prev) => ({ ...prev, cash: prev.cash - amount }));
+    setOwnedBusinesses((prev) =>
+      prev.map((b) => (b.id === businessId ? { ...b, treasury: (b.treasury || 0) + amount } : b))
+    );
+
+    triggerFeedback(`Deposited $${amount.toLocaleString()} into ${biz.name} treasury!`, 'success');
+    return true;
+  };
+
+  const withdrawFromBusiness = (businessId: string, amount: number): boolean => {
+    if (amount <= 0) return false;
+    const biz = ownedBusinesses.find((b) => b.id === businessId);
+    if (!biz) return false;
+
+    const availableTreasury = biz.treasury || 0;
+    if (availableTreasury < amount) {
+      triggerFeedback(`Treasury only has $${availableTreasury.toLocaleString()} available!`, 'warning');
+      return false;
+    }
+
+    setOwnedBusinesses((prev) =>
+      prev.map((b) => (b.id === businessId ? { ...b, treasury: (b.treasury || 0) - amount } : b))
+    );
+    setPlayer((prev) => ({ ...prev, cash: prev.cash + amount }));
+
+    triggerFeedback(`Withdrew $${amount.toLocaleString()} from ${biz.name} to personal cash!`, 'success');
+    return true;
+  };
+
+  // Weekly Career Jobs
+  const applyWeeklyJob = (jobId: string): boolean => {
+    const job = availableJobs.find((j) => j.id === jobId);
+    if (!job) return false;
+
+    if (job.payType !== 'weekly') {
+      return doJob(jobId);
+    }
+
+    // Education check
+    if (job.requiredEducation) {
+      const hasEducation = (player.education || []).includes(job.requiredEducation.id);
+      if (!hasEducation) {
+        triggerFeedback(`Requires Degree: ${job.requiredEducation.name}! Enroll in education courses first.`, 'warning');
+        return false;
+      }
+    }
+
+    // Transport check
+    if (job.requiredTransportTier && player.transportationTier < job.requiredTransportTier) {
+      triggerFeedback(`Requires Transportation Tier ${job.requiredTransportTier}+!`, 'warning');
+      return false;
+    }
+
+    setPlayer((prev) => ({
+      ...prev,
+      activeWeeklyJobId: jobId,
+      weeklyJobDaysRemaining: 7,
+    }));
+
+    addPlayerXP(180);
+    triggerFeedback(`Hired as ${job.title}!`, 'success', [
+      `Weekly Salary: $${job.weeklySalary?.toLocaleString()}/week`,
+      `Weekly Energy Commitment: ${job.weeklyEnergyCost || 35}⚡`,
+      `First paycheck in 7 in-game days!`,
+    ]);
+    return true;
+  };
+
+  const quitWeeklyJob = () => {
+    setPlayer((prev) => ({
+      ...prev,
+      activeWeeklyJobId: undefined,
+      weeklyJobDaysRemaining: undefined,
+    }));
+    triggerFeedback('Resigned from weekly position.', 'info');
   };
 
   const hireEmployee = (businessId: string, role: string, salary: number): boolean => {
@@ -2520,11 +2658,22 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         unlockAutoCollectManager,
 
         startBusiness,
+        depositToBusiness,
+        withdrawFromBusiness,
         hireEmployee,
         fireEmployee,
         upgradeBusinessOffice,
         boostBusinessMarketing,
         adjustBusinessPricing,
+
+        applyWeeklyJob,
+        quitWeeklyJob,
+
+        isPhoneOpen,
+        setIsPhoneOpen,
+        phoneActiveApp,
+        setPhoneActiveApp,
+        openPhoneApp,
 
         chooseEventOption,
         claimMissionReward,

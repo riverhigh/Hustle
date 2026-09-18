@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useGame } from '../../context/GameContext';
 import { formatCurrency } from '../../utils/formatters';
+import { BUSINESS_TEMPLATES } from '../../constants/gameData';
 import { 
   Briefcase, 
   Sparkles, 
   Zap, 
   Clock, 
   ArrowUpRight, 
+  ArrowDownRight,
   Users, 
   Plus, 
   Building2, 
@@ -20,7 +22,11 @@ import {
   Award,
   BookOpen,
   School,
-  ShieldCheck
+  ShieldCheck,
+  Wallet,
+  Landmark,
+  Calendar,
+  X
 } from 'lucide-react';
 
 export const HustleView: React.FC = () => {
@@ -30,8 +36,12 @@ export const HustleView: React.FC = () => {
     educationCourses,
     enrollInEducation,
     doJob, 
+    applyWeeklyJob,
+    quitWeeklyJob,
     ownedBusinesses, 
     startBusiness, 
+    depositToBusiness,
+    withdrawFromBusiness,
     hireEmployee, 
     fireEmployee, 
     boostBusinessMarketing, 
@@ -41,17 +51,40 @@ export const HustleView: React.FC = () => {
 
   const [activeSection, setActiveSection] = useState<'gigs' | 'education' | 'businesses'>('gigs');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [payTypeFilter, setPayTypeFilter] = useState<'all' | 'instant' | 'weekly'>('all');
   const [showNewBizModal, setShowNewBizModal] = useState<boolean>(false);
   const [newBizName, setNewBizName] = useState<string>('');
-  const [newBizType, setNewBizType] = useState<string>('pressure_wash_pro');
+  const [newBizType, setNewBizType] = useState<string>(BUSINESS_TEMPLATES[0].id);
+
+  // Treasury modal state
+  const [treasuryModalBiz, setTreasuryModalBiz] = useState<{ id: string; name: string; treasury: number; mode: 'deposit' | 'withdraw' } | null>(null);
+  const [treasuryAmount, setTreasuryAmount] = useState<string>('25000');
 
   const filteredJobs = availableJobs.filter((job) => {
+    if (payTypeFilter === 'instant' && job.payType === 'weekly') return false;
+    if (payTypeFilter === 'weekly' && job.payType !== 'weekly') return false;
     if (selectedCategory === 'all') return true;
     return job.category === selectedCategory;
   });
 
   const isMicrobusinessUnlocked = player.level >= 7 || player.unlockedFeatures.includes('microbusiness') || ownedBusinesses.length > 0;
   const playerDegrees = player.education || [];
+
+  const handleTreasuryAction = () => {
+    if (!treasuryModalBiz) return;
+    const amount = parseInt(treasuryAmount, 10);
+    if (isNaN(amount) || amount <= 0) return;
+
+    if (treasuryModalBiz.mode === 'deposit') {
+      if (depositToBusiness(treasuryModalBiz.id, amount)) {
+        setTreasuryModalBiz(null);
+      }
+    } else {
+      if (withdrawFromBusiness(treasuryModalBiz.id, amount)) {
+        setTreasuryModalBiz(null);
+      }
+    }
+  };
 
   return (
     <div className="space-y-4 pb-20 pt-1">
@@ -98,6 +131,42 @@ export const HustleView: React.FC = () => {
       {/* GIGS SECTION */}
       {activeSection === 'gigs' && (
         <div className="space-y-3">
+          {/* Job Type Filter Bar */}
+          <div className="flex bg-slate-900/80 p-1 rounded-xl border border-slate-800 text-xs">
+            <button
+              onClick={() => setPayTypeFilter('all')}
+              className={`flex-1 py-1.5 rounded-lg font-bold transition cursor-pointer ${
+                payTypeFilter === 'all'
+                  ? 'bg-slate-800 text-emerald-400 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              All Roles ({availableJobs.length})
+            </button>
+            <button
+              onClick={() => setPayTypeFilter('instant')}
+              className={`flex-1 py-1.5 rounded-lg font-bold transition cursor-pointer flex items-center justify-center gap-1 ${
+                payTypeFilter === 'instant'
+                  ? 'bg-slate-800 text-emerald-400 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+              <span>Instant Pay</span>
+            </button>
+            <button
+              onClick={() => setPayTypeFilter('weekly')}
+              className={`flex-1 py-1.5 rounded-lg font-bold transition cursor-pointer flex items-center justify-center gap-1 ${
+                payTypeFilter === 'weekly'
+                  ? 'bg-slate-800 text-indigo-400 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Weekly Salaried</span>
+            </button>
+          </div>
+
           {/* Categories Pill Bar */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
             {['all', 'manual', 'delivery', 'tech', 'sales', 'management'].map((cat) => (
@@ -118,48 +187,81 @@ export const HustleView: React.FC = () => {
           {/* Job Cards */}
           <div className="space-y-2.5">
             {filteredJobs.map((job) => {
+              const isWeekly = job.payType === 'weekly';
+              const isCurrentlyEmployed = player.activeWeeklyJobId === job.id;
               const hasEnergy = player.energy >= job.energyCost;
               const hasTransport = !job.requiredTransportTier || player.transportationTier >= job.requiredTransportTier;
               const hasSkill = !job.requiredSkill || player.skills[job.requiredSkill.skill].level >= job.requiredSkill.minLevel;
               const hasEducation = !job.requiredEducation || playerDegrees.includes(job.requiredEducation.id);
               const canWork = hasEnergy && hasTransport && hasSkill && hasEducation;
+              const canApplyWeekly = hasTransport && hasSkill && hasEducation;
 
               return (
                 <div
                   key={job.id}
-                  className="bg-slate-900/90 border border-slate-800/90 hover:border-slate-700/90 rounded-2xl p-3.5 shadow-md space-y-2.5 transition"
+                  className={`bg-slate-900/90 border rounded-2xl p-3.5 shadow-md space-y-2.5 transition ${
+                    isCurrentlyEmployed
+                      ? 'border-indigo-500/80 ring-1 ring-indigo-500/40 bg-indigo-950/20'
+                      : 'border-slate-800/90 hover:border-slate-700/90'
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <h3 className="text-sm font-bold text-slate-100">{job.title}</h3>
                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 uppercase tracking-wider border border-slate-700/60">
                           {job.category}
                         </span>
+                        {isWeekly && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-950/70 text-indigo-300 border border-indigo-700/50 flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            Weekly Career
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-slate-400 mt-1 line-clamp-2">{job.description}</p>
                     </div>
+
                     <div className="text-right shrink-0">
-                      <div className="text-base font-bold text-emerald-400">
-                        {formatCurrency(job.payoutBase)}
-                        {job.bonusTipMax ? <span className="text-[11px] text-emerald-500">+tip</span> : ''}
-                      </div>
-                      <span className="text-[10px] text-slate-500">estimated pay</span>
+                      {isWeekly && job.weeklySalary ? (
+                        <>
+                          <div className="text-base font-bold text-indigo-400">
+                            {formatCurrency(job.weeklySalary)}
+                            <span className="text-xs text-indigo-300 font-normal">/wk</span>
+                          </div>
+                          <span className="text-[10px] text-slate-400 block">Weekly Payroll</span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-base font-bold text-emerald-400">
+                            {formatCurrency(job.payoutBase)}
+                            {job.bonusTipMax ? <span className="text-[11px] text-emerald-500">+tip</span> : ''}
+                          </div>
+                          <span className="text-[10px] text-slate-500">instant pay</span>
+                        </>
+                      )}
                     </div>
                   </div>
 
-                  {/* Requirements & Skill Gain Tags */}
+                  {/* Requirements & Info Tags */}
                   <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                    {isWeekly && job.weeklyEnergyCost && (
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-950/40 border border-indigo-900/60 text-indigo-300 font-semibold">
+                        <Zap className="w-3 h-3 text-indigo-400" />
+                        <span>-{job.weeklyEnergyCost}⚡ Upkeep /wk</span>
+                      </div>
+                    )}
+
                     <div className={`flex items-center gap-1 px-2 py-0.5 rounded-lg border ${
                       hasEnergy ? 'bg-amber-950/30 border-amber-900/50 text-amber-300' : 'bg-rose-950/40 border-rose-900/50 text-rose-300'
                     }`}>
                       <Zap className="w-3 h-3" />
-                      <span>{job.energyCost} Energy</span>
+                      <span>{job.energyCost} Energy /shift</span>
                     </div>
 
                     <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-slate-300">
                       <Clock className="w-3 h-3 text-slate-400" />
-                      <span>{job.timeMinutes}m</span>
+                      <span>{job.timeMinutes}m shift</span>
                     </div>
 
                     {job.requiredEducation && (
@@ -189,7 +291,7 @@ export const HustleView: React.FC = () => {
                       <div className="flex items-center gap-1.5">
                         <GraduationCap className="w-4 h-4 text-amber-400 shrink-0" />
                         <div>
-                          <span>Requires: </span>
+                          <span>Requires Degree: </span>
                           <span className="font-bold text-amber-200">{job.requiredEducation.name}</span>
                         </div>
                       </div>
@@ -214,19 +316,70 @@ export const HustleView: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Action Button */}
-                  <button
-                    disabled={!canWork}
-                    onClick={() => doJob(job.id)}
-                    className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition shadow-md active:scale-98 ${
-                      canWork
-                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-950/40'
-                        : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/60'
-                    }`}
-                  >
-                    <span>WORK SHIFT</span>
-                    <ArrowUpRight className="w-4 h-4" />
-                  </button>
+                  {/* Action Buttons */}
+                  {isWeekly ? (
+                    <div className="space-y-2 pt-1">
+                      {isCurrentlyEmployed ? (
+                        <div className="flex items-center justify-between bg-indigo-950/40 border border-indigo-800/50 p-2.5 rounded-xl">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                            <div className="text-xs">
+                              <span className="font-bold text-slate-100">Currently Employed</span>
+                              <span className="text-slate-400 block text-[11px]">
+                                Next Paycheck ({formatCurrency(job.weeklySalary || 0)}) in {player.weeklyJobDaysRemaining ?? 7} in-game days
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={quitWeeklyJob}
+                            className="px-3 py-1.5 bg-rose-950/60 hover:bg-rose-900/60 border border-rose-800/50 text-rose-300 text-xs font-semibold rounded-lg transition cursor-pointer"
+                          >
+                            Resign
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          disabled={!canApplyWeekly}
+                          onClick={() => applyWeeklyJob(job.id)}
+                          className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition shadow-md active:scale-98 ${
+                            canApplyWeekly
+                              ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-950/40'
+                              : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/60'
+                          }`}
+                        >
+                          <Calendar className="w-4 h-4" />
+                          <span>ACCEPT WEEKLY CAREER CONTRACT ({formatCurrency(job.weeklySalary || 0)}/wk)</span>
+                        </button>
+                      )}
+
+                      {/* Optional Overtime Shift button for extra instant cash */}
+                      <button
+                        disabled={!canWork}
+                        onClick={() => doJob(job.id)}
+                        className={`w-full py-2 rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition ${
+                          canWork
+                            ? 'bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700'
+                            : 'bg-slate-900/50 text-slate-600 border border-slate-800 cursor-not-allowed'
+                        }`}
+                      >
+                        <Zap className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Work Overtime Shift (+{formatCurrency(job.payoutBase)})</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      disabled={!canWork}
+                      onClick={() => doJob(job.id)}
+                      className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition shadow-md active:scale-98 ${
+                        canWork
+                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-950/40'
+                          : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/60'
+                      }`}
+                    >
+                      <span>WORK SHIFT (INSTANT PAY)</span>
+                      <ArrowUpRight className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -500,6 +653,51 @@ export const HustleView: React.FC = () => {
                           </span>
                         </div>
 
+                        {/* Corporate Treasury & Working Capital */}
+                        <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Landmark className="w-4 h-4 text-emerald-400" />
+                              <div>
+                                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
+                                  Corporate Treasury
+                                </span>
+                                <span className="text-sm font-bold text-emerald-300">
+                                  {formatCurrency(biz.treasury || 0)}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => {
+                                  setTreasuryModalBiz({ id: biz.id, name: biz.name, treasury: biz.treasury || 0, mode: 'deposit' });
+                                  setTreasuryAmount('25000');
+                                }}
+                                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer shadow-sm active:scale-95"
+                              >
+                                <ArrowDownRight className="w-3.5 h-3.5" />
+                                <span>Deposit</span>
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  setTreasuryModalBiz({ id: biz.id, name: biz.name, treasury: biz.treasury || 0, mode: 'withdraw' });
+                                  setTreasuryAmount(Math.min(biz.treasury || 0, 25000).toString());
+                                }}
+                                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer shadow-sm active:scale-95"
+                              >
+                                <ArrowUpRight className="w-3.5 h-3.5 text-amber-400" />
+                                <span>Withdraw</span>
+                              </button>
+                            </div>
+                          </div>
+                          <div className="text-[10px] text-slate-400 flex items-center justify-between">
+                            <span>Daily net profits accrue here automatically.</span>
+                            <span className="text-slate-300 font-medium">Wallet: {formatCurrency(player.cash)}</span>
+                          </div>
+                        </div>
+
                         {/* Financial stats */}
                         <div className="grid grid-cols-3 gap-2 bg-slate-800/50 p-2.5 rounded-xl border border-slate-800 text-center">
                           <div>
@@ -564,17 +762,122 @@ export const HustleView: React.FC = () => {
         </div>
       )}
 
-      {/* START BUSINESS MODAL */}
+      {/* TREASURY DEPOSIT / WITHDRAW MODAL */}
+      {treasuryModalBiz && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Landmark className="w-5 h-5 text-emerald-400" />
+                <div>
+                  <h3 className="text-base font-bold text-slate-100">
+                    {treasuryModalBiz.mode === 'deposit' ? 'Deposit to Treasury' : 'Withdraw from Treasury'}
+                  </h3>
+                  <p className="text-xs text-slate-400">{treasuryModalBiz.name}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setTreasuryModalBiz(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Balances summary */}
+            <div className="grid grid-cols-2 gap-2 bg-slate-950/60 p-3 rounded-2xl border border-slate-800 text-xs">
+              <div>
+                <span className="text-slate-400 block text-[11px]">Personal Cash</span>
+                <span className="font-bold text-emerald-400 text-sm">{formatCurrency(player.cash)}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[11px]">Business Treasury</span>
+                <span className="font-bold text-indigo-300 text-sm">{formatCurrency(treasuryModalBiz.treasury)}</span>
+              </div>
+            </div>
+
+            {/* Quick amount chips */}
+            <div>
+              <label className="text-xs font-semibold text-slate-400 block mb-1.5">Select Amount</label>
+              <div className="grid grid-cols-4 gap-1.5 mb-2.5">
+                {[10000, 50000, 250000, 1000000].map((preset) => (
+                  <button
+                    key={preset}
+                    onClick={() => setTreasuryAmount(preset.toString())}
+                    className="py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 cursor-pointer transition"
+                  >
+                    +${preset >= 1000000 ? `${preset / 1000000}M` : `${preset / 1000}k`}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex gap-1.5">
+                <input
+                  type="number"
+                  value={treasuryAmount}
+                  onChange={(e) => setTreasuryAmount(e.target.value)}
+                  placeholder="Enter amount"
+                  className="flex-1 px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 text-sm font-bold focus:outline-none focus:border-emerald-500"
+                />
+                <button
+                  onClick={() => {
+                    if (treasuryModalBiz.mode === 'deposit') {
+                      setTreasuryAmount(player.cash.toString());
+                    } else {
+                      setTreasuryAmount(treasuryModalBiz.treasury.toString());
+                    }
+                  }}
+                  className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-indigo-300 text-xs font-bold rounded-xl border border-slate-700 cursor-pointer"
+                >
+                  MAX
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setTreasuryModalBiz(null)}
+                className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleTreasuryAction}
+                className={`flex-1 py-2.5 text-white text-xs font-bold rounded-xl cursor-pointer shadow-md transition active:scale-95 ${
+                  treasuryModalBiz.mode === 'deposit'
+                    ? 'bg-emerald-600 hover:bg-emerald-500'
+                    : 'bg-indigo-600 hover:bg-indigo-500'
+                }`}
+              >
+                Confirm {treasuryModalBiz.mode === 'deposit' ? 'Deposit' : 'Withdrawal'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* START BUSINESS MODAL ($250k to $10m) */}
       {showNewBizModal && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
-            <h3 className="text-base font-bold text-slate-100">Incorporate New Micro-Business</h3>
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-100">Incorporate New Commercial Enterprise</h3>
+                <p className="text-xs text-slate-400">Costs range from $250k to $10m based on industry scale</p>
+              </div>
+              <button
+                onClick={() => setShowNewBizModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             
             <div>
-              <label className="text-xs font-semibold text-slate-400 block mb-1">Business Name</label>
+              <label className="text-xs font-semibold text-slate-400 block mb-1">Company Trade Name</label>
               <input
                 type="text"
-                placeholder="e.g. Apex Power Cleaners"
+                placeholder="e.g. Apex Global Operations"
                 value={newBizName}
                 onChange={(e) => setNewBizName(e.target.value)}
                 className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus:border-indigo-500"
@@ -582,34 +885,50 @@ export const HustleView: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-400 block mb-1">Industry Blueprint</label>
-              <div className="space-y-2">
-                {[
-                  { id: 'pressure_wash_pro', name: 'Pressure Washing Commercial', cost: 1200, rev: 1800, exp: 600 },
-                  { id: 'cleaning_crew', name: 'Office Cleaning Solutions', cost: 2500, rev: 3200, exp: 1100 },
-                  { id: 'landscaping_pros', name: 'Elite Landscape & Turf', cost: 4500, rev: 5400, exp: 1800 },
-                  { id: 'tech_agency', name: 'Digital Web & Growth Agency', cost: 6000, rev: 8500, exp: 2400 },
-                  { id: 'moving_logistics', name: 'Regional Cargo & Moving', cost: 12000, rev: 16000, exp: 5500 },
-                ].map((b) => (
-                  <div
-                    key={b.id}
-                    onClick={() => setNewBizType(b.id)}
-                    className={`p-3 rounded-2xl border cursor-pointer transition ${
-                      newBizType === b.id
-                        ? 'bg-indigo-950/50 border-indigo-500'
-                        : 'bg-slate-800/40 border-slate-800 hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between text-xs font-bold text-slate-200">
-                      <span>{b.name}</span>
-                      <span className="text-emerald-400">{formatCurrency(b.cost)} startup</span>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-slate-400">Industry Enterprise Blueprint</label>
+                <span className="text-[11px] text-emerald-400 font-bold">Your Cash: {formatCurrency(player.cash)}</span>
+              </div>
+              <div className="space-y-2.5">
+                {BUSINESS_TEMPLATES.map((b) => {
+                  const hasCash = player.cash >= b.cost;
+                  const isSelected = newBizType === b.id;
+                  return (
+                    <div
+                      key={b.id}
+                      onClick={() => setNewBizType(b.id)}
+                      className={`p-3.5 rounded-2xl border cursor-pointer transition ${
+                        isSelected
+                          ? 'bg-indigo-950/60 border-indigo-500 shadow-md'
+                          : 'bg-slate-800/40 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <h4 className="text-xs font-bold text-slate-100">{b.name}</h4>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-indigo-300 font-semibold uppercase">
+                              {b.category}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{b.description}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className={`text-xs sm:text-sm font-bold ${hasCash ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            {formatCurrency(b.cost)}
+                          </div>
+                          <span className="text-[10px] text-slate-500">Capital Required</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-800/80">
+                        <span>Projected Rev: <strong className="text-emerald-400">{formatCurrency(b.revenue)}/mo</strong></span>
+                        <span>Projected Exp: <strong className="text-rose-400">{formatCurrency(b.expenses)}/mo</strong></span>
+                        <span>Net Profit: <strong className="text-emerald-300">+{formatCurrency(b.revenue - b.expenses)}/mo</strong></span>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1">
-                      <span>Est. Rev: {formatCurrency(b.rev)}/mo</span>
-                      <span>Expenses: {formatCurrency(b.exp)}/mo</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -622,15 +941,15 @@ export const HustleView: React.FC = () => {
               </button>
               <button
                 onClick={() => {
-                  const finalName = newBizName.trim() || 'Vance Ventures';
+                  const finalName = newBizName.trim() || 'Vance Global Enterprises';
                   if (startBusiness(newBizType, finalName)) {
                     setShowNewBizModal(false);
                     setNewBizName('');
                   }
                 }}
-                className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl cursor-pointer"
+                className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl cursor-pointer shadow-md transition active:scale-95"
               >
-                Confirm & Launch
+                Incorporate & Launch
               </button>
             </div>
           </div>

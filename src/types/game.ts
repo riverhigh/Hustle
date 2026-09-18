@@ -54,6 +54,8 @@ export interface PlayerProfile {
   totalOnTimePayments: number;
   missedPaymentsCount: number;
   education: string[]; // List of completed degrees / certifications (e.g. 'edu_trade_cert', 'edu_cs_bachelor')
+  activeWeeklyJobId?: string; // ID of current weekly salaried career position
+  weeklyJobDaysRemaining?: number; // Days until next weekly paycheck (0-6)
 }
 
 export interface BankAccount {
@@ -96,6 +98,9 @@ export interface JobOpportunity {
   title: string;
   category: 'manual' | 'delivery' | 'sales' | 'tech' | 'management';
   description: string;
+  payType?: 'instant' | 'weekly'; // Instant gig vs weekly salaried job
+  weeklySalary?: number; // Salaried payout every 7 in-game days
+  weeklyEnergyCost?: number; // Weekly stamina / energy upkeep cost
   energyCost: number;
   timeMinutes: number;
   payoutBase: number;
@@ -159,6 +164,7 @@ export interface Business {
   contracts: BusinessContract[];
   priceMultiplier: number; // 0.8 to 1.5
   marketingBudgetMonthly: number;
+  treasury: number; // Corporate treasury cash reserves available for withdraw/deposit
 }
 
 export type PropertyAreaId = 

@@ -14,6 +14,7 @@ import { PropertiesView } from './components/properties/PropertiesView';
 import { FinanceView } from './components/finance/FinanceView';
 import { MarketView } from './components/market/MarketView';
 import { SelfView } from './components/self/SelfView';
+import { PhoneView } from './components/phone/PhoneView';
 import { PullToRefresh } from './components/pwa/PullToRefresh';
 
 const MainAppContent: React.FC = () => {
@@ -63,6 +64,7 @@ const MainAppContent: React.FC = () => {
         />
         <EventModal />
         <TutorialModal />
+        <PhoneView />
       </div>
     </div>
   );
