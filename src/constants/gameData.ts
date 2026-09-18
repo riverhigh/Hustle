@@ -37,6 +37,10 @@ export const INITIAL_PLAYER: PlayerProfile = {
   },
   selectedGoalId: 'goal_first_500',
   unlockedFeatures: ['hustle', 'self', 'finance'],
+  gems: 10, // Starting bonus gems for store testing
+  consecutiveOnTimePayments: 0,
+  totalOnTimePayments: 0,
+  missedPaymentsCount: 0,
 };
 
 export const HOUSING_TIERS = [
@@ -167,6 +171,10 @@ export const TRANSPORTATION_TIERS = [
     dailyCost: 4,
     speedMultiplier: 1.8,
     travelEnergyCost: 5,
+    canFinance: true,
+    downPaymentPercent: 0.20, // $170 down
+    financeTermMonths: 12,
+    minCreditScore: 540,
     description: 'Zips past traffic jams. Greatly accelerates delivery earnings and gig times.',
   },
   {
@@ -176,7 +184,11 @@ export const TRANSPORTATION_TIERS = [
     dailyCost: 12,
     speedMultiplier: 2.2,
     travelEnergyCost: 4,
-    description: 'Weatherproof commuting with cargo trunk. Unlocks regional errands and sales trips.',
+    canFinance: true,
+    downPaymentPercent: 0.20, // $640 down
+    financeTermMonths: 24,
+    minCreditScore: 580,
+    description: 'Weatherproof commuting with cargo trunk. Unlocks regional errands and sales trips. Builds credit on monthly payments!',
   },
   {
     tier: 6,
@@ -185,7 +197,11 @@ export const TRANSPORTATION_TIERS = [
     dailyCost: 22,
     speedMultiplier: 2.1,
     travelEnergyCost: 4,
-    description: 'Hauls heavy tools and construction materials. Unlocks high-paying renovation contracts.',
+    canFinance: true,
+    downPaymentPercent: 0.20, // $1,700 down
+    financeTermMonths: 36,
+    minCreditScore: 620,
+    description: 'Hauls heavy tools and construction materials. Unlocks high-paying renovation contracts. Solid credit builder!',
   },
   {
     tier: 7,
@@ -194,6 +210,10 @@ export const TRANSPORTATION_TIERS = [
     dailyCost: 35,
     speedMultiplier: 2.6,
     travelEnergyCost: 2,
+    canFinance: true,
+    downPaymentPercent: 0.15, // $5,700 down
+    financeTermMonths: 48,
+    minCreditScore: 670,
     description: 'Comfortable client transport. Boosts negotiation power and reputation.',
   },
   {
@@ -203,6 +223,10 @@ export const TRANSPORTATION_TIERS = [
     dailyCost: 45,
     speedMultiplier: 2.3,
     travelEnergyCost: 2,
+    canFinance: true,
+    downPaymentPercent: 0.15, // $8,100 down
+    financeTermMonths: 48,
+    minCreditScore: 710,
     description: 'Mobile workshop that equips multiple team members for commercial gigs.',
   },
   {
@@ -212,6 +236,10 @@ export const TRANSPORTATION_TIERS = [
     dailyCost: 150,
     speedMultiplier: 3.0,
     travelEnergyCost: 0,
+    canFinance: true,
+    downPaymentPercent: 0.15, // $27,000 down
+    financeTermMonths: 60,
+    minCreditScore: 750,
     description: 'Full corporate fleet with dispatch logistics. Multiplies business revenues.',
   },
 ];

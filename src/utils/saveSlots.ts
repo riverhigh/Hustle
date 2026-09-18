@@ -16,6 +16,7 @@ export const DEFAULT_EMPTY_SLOT = (slotId: 1 | 2 | 3): SaveSlotMeta => ({
   creditScore: 550,
   housingTier: 1,
   housingName: "Mom's Couch",
+  gems: 10,
   lastSaved: 0,
 });
 
@@ -55,6 +56,7 @@ export const getAllSlotsMeta = (): SaveSlotMeta[] => {
         netWorth: p.cash || 100,
         cash: p.cash || 100,
         creditScore: p.creditScore || 550,
+        gems: p.gems || 10,
         housingTier: p.housingTier || 1,
         housingName: housing?.name || "Mom's Couch",
         lastSaved: Date.now(),

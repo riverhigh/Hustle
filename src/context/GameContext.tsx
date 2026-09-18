@@ -88,6 +88,7 @@ interface GameContextType {
   takeNap: () => void;
   upgradeHousing: (tier: number) => boolean;
   buyTransportation: (tier: number) => boolean;
+  financeVehicle: (tier: number) => boolean;
   
   // Banking & Debt
   depositBank: (accountId: 'checking' | 'savings' | 'emergency', amount: number) => boolean;
@@ -96,7 +97,15 @@ interface GameContextType {
   applyCreditCard: (tier: number) => boolean;
   takeLoan: (type: 'personal' | 'business' | 'mortgage', amount: number, termMonths: number) => boolean;
   payLoan: (loanId: string, amount: number) => boolean;
+  payMonthlyLoanDue: (loanId: string) => boolean;
   fileBankruptcyRebuild: () => void;
+
+  // Premium Store & Paystack
+  isStoreModalOpen: boolean;
+  setIsStoreModalOpen: (open: boolean) => void;
+  buyGemsWithPaystack: (gemAmount: number, reference: string) => void;
+  exchangeGemsForCash: (gemCost: number, cashAmount: number) => boolean;
+  useGemPerk: (perkId: string) => boolean;
 
   // Stocks
   buyStock: (stockId: string, shares: number) => boolean;
@@ -368,6 +377,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [autoCollectRentUnlocked, setAutoCollectRentUnlocked] = useState<boolean>(() => {
     return localStorage.getItem(LOCAL_STORAGE_KEY + '_autocollect') === 'true';
   });
+  const [isStoreModalOpen, setIsStoreModalOpen] = useState<boolean>(false);
 
   // Pop up banner disabled per user request
   const triggerFeedback = useCallback((_text: string, _type: 'success' | 'warning' | 'info' | 'error' = 'success', _details?: string[]) => {
@@ -744,15 +754,34 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
     }
 
-    // 8. Slight credit score improvement for low utilization
-    setPlayer((prev) => {
-      const isGoodUtilization = totalCreditDebt < 200;
-      const creditDelta = isGoodUtilization ? 2 : -2;
-      return {
-        ...prev,
-        creditScore: Math.min(850, Math.max(300, prev.creditScore + creditDelta)),
-      };
-    });
+    // 8. Monthly Credit Bureau Evaluation (Every 30 Days)
+    // Credit does NOT increase passively every day. It grows from taking loans, financing cars,
+    // and paying scheduled installments on time.
+    if (player.daysPlayed > 0 && player.daysPlayed % 30 === 0) {
+      setPlayer((prev) => {
+        let creditDelta = 0;
+
+        // Credit utilization factor
+        const totalCardLimit = creditCards.filter(c => c.unlocked).reduce((sum, c) => sum + c.limit, 0);
+        const cardUtilization = totalCardLimit > 0 ? (totalCreditDebt / totalCardLimit) : 0;
+
+        if (totalCreditDebt === 0 && prev.consecutiveOnTimePayments > 0) {
+          // Clean record maintenance
+          creditDelta += 1;
+        } else if (cardUtilization > 0.85) {
+          // Severe over-utilization penalty
+          creditDelta -= 6;
+        } else if (cardUtilization < 0.30 && totalCreditDebt > 0) {
+          // Responsible low revolving utilization
+          creditDelta += 2;
+        }
+
+        return {
+          ...prev,
+          creditScore: Math.min(850, Math.max(300, prev.creditScore + creditDelta)),
+        };
+      });
+    }
 
   }, [ownedBusinesses, ownedProperties, autoCollectRentUnlocked, player.daysPlayed, player.cash, totalCreditDebt]);
 
@@ -954,7 +983,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return true;
   };
 
-  // Buy Transportation
+  // Buy Transportation outright
   const buyTransportation = (tier: number): boolean => {
     const target = TRANSPORTATION_TIERS.find((t) => t.tier === tier);
     if (!target) return false;
@@ -975,6 +1004,68 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     triggerFeedback(`Acquired ${target.name}!`, 'success', [
       `Travel Speed: ${target.speedMultiplier}x`,
       `Unlocks higher distance gigs & logistics!`,
+    ]);
+    return true;
+  };
+
+  // Finance Vehicle (Auto Loan)
+  const financeVehicle = (tier: number): boolean => {
+    const target = TRANSPORTATION_TIERS.find((t) => t.tier === tier);
+    if (!target || !target.canFinance) return false;
+
+    const minScore = target.minCreditScore || 580;
+    if (player.creditScore < minScore) {
+      triggerFeedback(`Financing Declined: Requires ${minScore}+ Credit Score (Current: ${player.creditScore})`, 'warning');
+      return false;
+    }
+
+    const downPercent = target.downPaymentPercent || 0.20;
+    const downPayment = Math.round(target.cost * downPercent);
+    if (player.cash < downPayment) {
+      triggerFeedback(`Need $${downPayment.toLocaleString()} for the ${Math.round(downPercent * 100)}% down payment!`, 'warning');
+      return false;
+    }
+
+    const financedPrincipal = target.cost - downPayment;
+    const termMonths = target.financeTermMonths || 36;
+    
+    // Competitive APR scaled by credit rating tier
+    const apr = player.creditScore >= 750 ? 0.055 : player.creditScore >= 680 ? 0.075 : player.creditScore >= 620 ? 0.11 : player.creditScore >= 580 ? 0.15 : 0.19;
+    const monthlyRate = apr / 12;
+    const monthlyPayment = Math.round(
+      (financedPrincipal * monthlyRate * Math.pow(1 + monthlyRate, termMonths)) /
+        (Math.pow(1 + monthlyRate, termMonths) - 1)
+    );
+
+    const autoLoan: Loan = {
+      id: 'auto_' + Date.now(),
+      name: `Auto Finance: ${target.name}`,
+      type: 'auto',
+      principal: financedPrincipal,
+      remainingBalance: financedPrincipal,
+      interestRate: apr,
+      monthlyPayment,
+      monthsRemaining: termMonths,
+      paymentsMade: 0,
+      nextPaymentDueDay: player.daysPlayed + 30,
+      financedItemName: target.name,
+      missedPayment: false,
+    };
+
+    setPlayer((prev) => ({
+      ...prev,
+      cash: prev.cash - downPayment,
+      transportationTier: tier,
+      reputation: Math.min(100, prev.reputation + tier * 2),
+    }));
+
+    setLoans((prev) => [...prev, autoLoan]);
+    addPlayerXP(65);
+    triggerFeedback(`🚗 Vehicle Financed: ${target.name}!`, 'success', [
+      `Down Payment: $${downPayment.toLocaleString()}`,
+      `Financed: $${financedPrincipal.toLocaleString()} (${termMonths} mos @ ${(apr * 100).toFixed(1)}% APR)`,
+      `Monthly Installment: $${monthlyPayment}/mo`,
+      `⭐ Pay on time every month to steadily grow your credit score!`,
     ]);
     return true;
   };
@@ -1020,18 +1111,26 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     const payAmount = Math.min(card.balance, amount);
-    setPlayer((prev) => ({ ...prev, cash: prev.cash - payAmount }));
+    const newBalance = card.balance - payAmount;
+    const oldUtilization = card.limit > 0 ? card.balance / card.limit : 0;
+    const newUtilization = card.limit > 0 ? newBalance / card.limit : 0;
+
+    setPlayer((prev) => {
+      // Credit score only improves if lowering utilization under 30% from a higher utilization
+      const gotUnder30 = oldUtilization >= 0.30 && newUtilization < 0.30;
+      const creditGain = gotUnder30 ? 2 : 0;
+      return {
+        ...prev,
+        cash: prev.cash - payAmount,
+        creditScore: Math.min(850, prev.creditScore + creditGain),
+      };
+    });
+
     setCreditCards((prev) =>
-      prev.map((c) => (c.id === cardId ? { ...c, balance: c.balance - payAmount } : c))
+      prev.map((c) => (c.id === cardId ? { ...c, balance: newBalance } : c))
     );
 
-    // Boost credit score slightly on repayment
-    setPlayer((prev) => ({
-      ...prev,
-      creditScore: Math.min(850, prev.creditScore + 3),
-    }));
-
-    triggerFeedback(`Paid $${payAmount} towards ${card.name}`, 'success', ['⭐ Credit Score +3']);
+    triggerFeedback(`Paid $${payAmount} towards ${card.name}`, 'success');
     return true;
   };
 
@@ -1053,8 +1152,14 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return true;
   };
 
-  // Take loan
+  // Take personal or business loan
   const takeLoan = (type: 'personal' | 'business' | 'mortgage', amount: number, termMonths: number): boolean => {
+    const minScore = type === 'business' ? 620 : type === 'mortgage' ? 660 : 540;
+    if (player.creditScore < minScore) {
+      triggerFeedback(`Loan Application Denied: Requires ${minScore}+ credit score (Current: ${player.creditScore})`, 'warning');
+      return false;
+    }
+
     const interestRate = Math.max(0.045, 0.22 - (player.creditScore - 550) * 0.0004);
     const monthlyRate = interestRate / 12;
     const monthlyPayment = Math.round(
@@ -1070,6 +1175,9 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       interestRate,
       monthlyPayment,
       monthsRemaining: termMonths,
+      paymentsMade: 0,
+      nextPaymentDueDay: player.daysPlayed + 30,
+      missedPayment: false,
     };
 
     setLoans((prev) => [...prev, newLoan]);
@@ -1077,10 +1185,66 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     triggerFeedback(`Loan Approved: +$${amount.toLocaleString()}`, 'success', [
       `Monthly payment: $${monthlyPayment}/mo`,
       `Term: ${termMonths} months`,
+      `⭐ Pay monthly on time to grow your credit score!`,
     ]);
     return true;
   };
 
+  // Pay Scheduled Monthly Installment (Core Credit Score Growth Mechanism)
+  const payMonthlyLoanDue = (loanId: string): boolean => {
+    const loan = loans.find((l) => l.id === loanId);
+    if (!loan) return false;
+
+    const payment = Math.min(loan.remainingBalance, loan.monthlyPayment);
+    if (player.cash < payment) {
+      triggerFeedback(`Insufficient cash to pay monthly installment ($${payment.toLocaleString()})!`, 'warning');
+      return false;
+    }
+
+    // Realistic Credit Score Growth for On-Time Installment Payment:
+    // +4 to +6 points per on-time monthly payment!
+    const baseCreditGain = loan.type === 'auto' ? 5 : 4;
+    const newConsecutive = (player.consecutiveOnTimePayments || 0) + 1;
+    // Streak milestone bonus every 3 months on time
+    const streakBonus = newConsecutive % 3 === 0 ? 3 : 0;
+    const totalCreditGain = baseCreditGain + streakBonus;
+
+    setPlayer((prev) => ({
+      ...prev,
+      cash: prev.cash - payment,
+      creditScore: Math.min(850, prev.creditScore + totalCreditGain),
+      consecutiveOnTimePayments: newConsecutive,
+      totalOnTimePayments: (prev.totalOnTimePayments || 0) + 1,
+      reputation: Math.min(100, prev.reputation + (streakBonus > 0 ? 2 : 1)),
+    }));
+
+    setLoans((prev) =>
+      prev
+        .map((l) => {
+          if (l.id !== loanId) return l;
+          const newBalance = Math.max(0, l.remainingBalance - payment);
+          const newMonths = Math.max(0, l.monthsRemaining - 1);
+          return {
+            ...l,
+            remainingBalance: newBalance,
+            monthsRemaining: newMonths,
+            paymentsMade: (l.paymentsMade || 0) + 1,
+            nextPaymentDueDay: player.daysPlayed + 30,
+            missedPayment: false,
+          };
+        })
+        .filter((l) => l.remainingBalance > 0 && l.monthsRemaining > 0)
+    );
+
+    addPlayerXP(35);
+    triggerFeedback(`Monthly Due Paid: -$${payment.toLocaleString()}`, 'success', [
+      `⭐ On-Time Payment! Credit Score +${totalCreditGain}`,
+      `On-Time Streak: ${newConsecutive} payments`,
+    ]);
+    return true;
+  };
+
+  // Pay Extra Principal on loan (does not artificially inflate credit on micro-payments)
   const payLoan = (loanId: string, amount: number): boolean => {
     const loan = loans.find((l) => l.id === loanId);
     if (!loan || player.cash < amount) {
@@ -1097,13 +1261,93 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .filter((l) => l.remainingBalance > 0)
     );
 
+    triggerFeedback(`Loan Principal Repaid: -$${payment.toLocaleString()}`, 'success');
+    return true;
+  };
+
+  // Premium Store & Paystack Actions
+  const buyGemsWithPaystack = (gemAmount: number, reference: string) => {
     setPlayer((prev) => ({
       ...prev,
-      creditScore: Math.min(850, prev.creditScore + 2),
+      gems: (prev.gems || 0) + gemAmount,
+    }));
+    addPlayerXP(50);
+    triggerFeedback(`💎 Delivered +${gemAmount.toLocaleString()} Gems!`, 'success', [
+      `Transaction Ref: ${reference.slice(0, 18)}...`,
+      `Exchange gems for in-game cash or premium boosts!`,
+    ]);
+  };
+
+  const exchangeGemsForCash = (gemCost: number, cashAmount: number): boolean => {
+    if ((player.gems || 0) < gemCost) {
+      triggerFeedback(`Insufficient Gems! Need ${gemCost} 💎 (You have ${player.gems || 0} 💎)`, 'warning');
+      return false;
+    }
+
+    setPlayer((prev) => ({
+      ...prev,
+      gems: prev.gems - gemCost,
+      cash: prev.cash + cashAmount,
     }));
 
-    triggerFeedback(`Loan Principal Repaid: -$${payment}`, 'success', ['Credit score increased!']);
+    addPlayerXP(40);
+    triggerFeedback(`Exchanged ${gemCost} 💎 for +$${cashAmount.toLocaleString()} Cash!`, 'success', [
+      `New Cash Balance: $${(player.cash + cashAmount).toLocaleString()}`,
+    ]);
     return true;
+  };
+
+  const useGemPerk = (perkId: string): boolean => {
+    if (perkId === 'perk_full_energy') {
+      if ((player.gems || 0) < 10) {
+        triggerFeedback('Need 10 Gems for Energy Supercharge!', 'warning');
+        return false;
+      }
+      setPlayer((prev) => ({
+        ...prev,
+        gems: prev.gems - 10,
+        energy: prev.maxEnergy,
+      }));
+      triggerFeedback('⚡ Energy Supercharge! Restored to 100% Max', 'success');
+      return true;
+    }
+
+    if (perkId === 'perk_credit_cleanse') {
+      if ((player.gems || 0) < 25) {
+        triggerFeedback('Need 25 Gems for Credit Bureau Cleanse!', 'warning');
+        return false;
+      }
+      setPlayer((prev) => ({
+        ...prev,
+        gems: prev.gems - 25,
+        creditScore: Math.min(850, prev.creditScore + 25),
+        missedPaymentsCount: 0,
+        consecutiveOnTimePayments: Math.max(3, prev.consecutiveOnTimePayments || 0),
+      }));
+      setLoans((prev) => prev.map((l) => ({ ...l, missedPayment: false })));
+      triggerFeedback('📈 Bureau Cleanse Completed! +25 Credit Score', 'success', [
+        'Cleared late payment flags from credit file.',
+      ]);
+      return true;
+    }
+
+    if (perkId === 'perk_vip_booster') {
+      if ((player.gems || 0) < 40) {
+        triggerFeedback('Need 40 Gems for VIP Prestige Booster!', 'warning');
+        return false;
+      }
+      setPlayer((prev) => ({
+        ...prev,
+        gems: prev.gems - 40,
+        reputation: Math.min(100, prev.reputation + 15),
+      }));
+      triggerFeedback('👑 VIP Prestige Booster Activated!', 'success', [
+        '+15 Reputation boost applied.',
+      ]);
+      return true;
+    }
+
+    return false;
   };
 
   // Bankruptcy recovery
@@ -1226,6 +1470,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         interestRate: rate,
         monthlyPayment,
         monthsRemaining: termMonths,
+        paymentsMade: 0,
+        nextPaymentDueDay: player.daysPlayed + 30,
         collateralPropertyId: prop.id,
       };
 
@@ -1720,6 +1966,10 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const pRaw = localStorage.getItem(getSlotStorageKey(slotId, 'player'));
       const loadedPlayer: PlayerProfile = pRaw ? JSON.parse(pRaw) : INITIAL_PLAYER;
+      if (typeof loadedPlayer.gems !== 'number') loadedPlayer.gems = 10;
+      if (typeof loadedPlayer.consecutiveOnTimePayments !== 'number') loadedPlayer.consecutiveOnTimePayments = 0;
+      if (typeof loadedPlayer.totalOnTimePayments !== 'number') loadedPlayer.totalOnTimePayments = 0;
+      if (typeof loadedPlayer.missedPaymentsCount !== 'number') loadedPlayer.missedPaymentsCount = 0;
       setPlayer(loadedPlayer);
 
       const bRaw = localStorage.getItem(getSlotStorageKey(slotId, 'bank'));
@@ -2129,6 +2379,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         takeNap,
         upgradeHousing,
         buyTransportation,
+        financeVehicle,
 
         depositBank,
         withdrawBank,
@@ -2136,7 +2387,14 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         applyCreditCard,
         takeLoan,
         payLoan,
+        payMonthlyLoanDue,
         fileBankruptcyRebuild,
+
+        isStoreModalOpen,
+        setIsStoreModalOpen,
+        buyGemsWithPaystack,
+        exchangeGemsForCash,
+        useGemPerk,
 
         buyStock,
         sellStock,

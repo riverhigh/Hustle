@@ -8,6 +8,7 @@ import { RestModal } from './components/modals/RestModal';
 import { NewsModal } from './components/modals/NewsModal';
 import { EventModal } from './components/modals/EventModal';
 import { TutorialModal } from './components/modals/TutorialModal';
+import { PremiumStoreModal } from './components/modals/PremiumStoreModal';
 import { HustleView } from './components/hustle/HustleView';
 import { PropertiesView } from './components/properties/PropertiesView';
 import { FinanceView } from './components/finance/FinanceView';
@@ -15,7 +16,7 @@ import { MarketView } from './components/market/MarketView';
 import { SelfView } from './components/self/SelfView';
 
 const MainAppContent: React.FC = () => {
-  const { activeTab } = useGame();
+  const { activeTab, isStoreModalOpen, setIsStoreModalOpen } = useGame();
   const [isRestModalOpen, setIsRestModalOpen] = useState(false);
   const [isNewsModalOpen, setIsNewsModalOpen] = useState(false);
 
@@ -52,6 +53,10 @@ const MainAppContent: React.FC = () => {
         <NewsModal
           isOpen={isNewsModalOpen}
           onClose={() => setIsNewsModalOpen(false)}
+        />
+        <PremiumStoreModal
+          isOpen={isStoreModalOpen}
+          onClose={() => setIsStoreModalOpen(false)}
         />
         <EventModal />
         <TutorialModal />

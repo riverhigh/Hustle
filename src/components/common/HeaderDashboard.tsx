@@ -20,7 +20,8 @@ import {
   Home,
   AlertCircle,
   Smartphone,
-  Download
+  Download,
+  Gem
 } from 'lucide-react';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { IOSInstallModal } from '../pwa/IOSInstallModal';
@@ -31,7 +32,7 @@ interface HeaderDashboardProps {
 }
 
 export const HeaderDashboard: React.FC<HeaderDashboardProps> = ({ onOpenRest, onOpenNews }) => {
-  const { player, netWorth, sleep, activeSlotId, manualSave, exitToMainMenu } = useGame();
+  const { player, netWorth, sleep, activeSlotId, manualSave, exitToMainMenu, setIsStoreModalOpen } = useGame();
   const { isInstalled, isInstallable, isIOS, install } = usePWAInstall();
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showIOSInstall, setShowIOSInstall] = useState(false);
@@ -68,6 +69,17 @@ export const HeaderDashboard: React.FC<HeaderDashboardProps> = ({ onOpenRest, on
         </div>
 
         <div className="flex items-center gap-1">
+          {/* Diamond Store Shortcut Button */}
+          <button
+            onClick={() => setIsStoreModalOpen(true)}
+            className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-cyan-950 to-indigo-950 hover:from-cyan-900 hover:to-indigo-900 border border-cyan-500/50 text-cyan-300 rounded-md font-bold transition active:scale-95 cursor-pointer shadow-sm"
+            title="Premium Diamond Store (Paystack)"
+          >
+            <Gem className="w-3 h-3 text-cyan-400" />
+            <span className="text-[11px] font-black">{player.gems || 0}</span>
+            <span className="text-[9px] text-cyan-300 bg-cyan-500/30 px-1 rounded font-black">+</span>
+          </button>
+
           {!isInstalled && (
             <button
               onClick={() => {

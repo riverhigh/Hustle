@@ -49,6 +49,10 @@ export interface PlayerProfile {
   skills: PlayerSkills;
   selectedGoalId?: string;
   unlockedFeatures: string[];
+  gems: number; // Premium currency for Store & Paystack purchases
+  consecutiveOnTimePayments: number; // Payment history streak for credit growth
+  totalOnTimePayments: number;
+  missedPaymentsCount: number;
 }
 
 export interface BankAccount {
@@ -73,13 +77,17 @@ export interface CreditCard {
 export interface Loan {
   id: string;
   name: string;
-  type: 'personal' | 'business' | 'mortgage';
+  type: 'personal' | 'business' | 'mortgage' | 'auto';
   principal: number;
   remainingBalance: number;
   interestRate: number;
   monthlyPayment: number;
   monthsRemaining: number;
+  paymentsMade: number;
+  nextPaymentDueDay: number;
   collateralPropertyId?: string;
+  financedItemName?: string;
+  missedPayment?: boolean;
 }
 
 export interface JobOpportunity {
@@ -305,5 +313,6 @@ export interface SaveSlotMeta {
   creditScore: number;
   housingTier: number;
   housingName: string;
+  gems: number;
   lastSaved: number; // timestamp
 }

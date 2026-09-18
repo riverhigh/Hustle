@@ -1,6 +1,14 @@
 import React, { useState } from 'react';
 import { useGame } from '../../context/GameContext';
 import { formatCurrency, getCreditScoreTier } from '../../utils/formatters';
+import { TRANSPORTATION_TIERS } from '../../constants/gameData';
+import { 
+  GEM_BUNDLES, 
+  GEM_CASH_EXCHANGES, 
+  GEM_PERKS, 
+  initiatePaystackCheckout, 
+  GemBundle 
+} from '../../utils/paystack';
 import { 
   Landmark, 
   CreditCard, 
@@ -12,8 +20,15 @@ import {
   DollarSign, 
   Plus, 
   CheckCircle2,
-  Lock,
-  RotateCcw
+  Car,
+  TrendingUp,
+  Gem,
+  Sparkles,
+  ArrowRight,
+  Zap,
+  Crown,
+  History,
+  Info
 } from 'lucide-react';
 
 export const FinanceView: React.FC = () => {
@@ -28,11 +43,18 @@ export const FinanceView: React.FC = () => {
     applyCreditCard,
     takeLoan,
     payLoan,
+    payMonthlyLoanDue,
+    financeVehicle,
+    buyTransportation,
     fileBankruptcyRebuild,
+    buyGemsWithPaystack,
+    exchangeGemsForCash,
+    useGemPerk,
+    setIsStoreModalOpen,
     totalDebt,
   } = useGame();
 
-  const [activeSegment, setActiveSegment] = useState<'banking' | 'credit' | 'loans'>('banking');
+  const [activeSegment, setActiveSegment] = useState<'banking' | 'credit' | 'loans' | 'store'>('banking');
   const [bankActionModal, setBankActionModal] = useState<{
     type: 'deposit' | 'withdraw';
     accountId: 'checking' | 'savings' | 'emergency';
@@ -44,6 +66,10 @@ export const FinanceView: React.FC = () => {
   const [newLoanAmount, setNewLoanAmount] = useState<number>(3000);
   const [newLoanTerm, setNewLoanTerm] = useState<number>(12);
 
+  // Store tab states
+  const [storeCurrency, setStoreCurrency] = useState<'USD' | 'NGN'>('USD');
+  const [isProcessingStore, setIsProcessingStore] = useState<boolean>(false);
+
   const creditTier = getCreditScoreTier(player.creditScore);
 
   // Total credit limit & utilization
@@ -51,42 +77,80 @@ export const FinanceView: React.FC = () => {
   const totalCardBalance = creditCards.reduce((sum, c) => sum + c.balance, 0);
   const creditUtilization = totalCreditLimit > 0 ? Math.round((totalCardBalance / totalCreditLimit) * 100) : 0;
 
+  // Calculators for vehicle financing showroom
+  const vehiclesToFinance = TRANSPORTATION_TIERS.filter((t) => t.canFinance);
+
+  const handleBuyBundle = async (bundle: GemBundle) => {
+    setIsProcessingStore(true);
+    await initiatePaystackCheckout({
+      bundle,
+      currency: storeCurrency,
+      customerEmail: 'printblue436@gmail.com',
+      onSuccess: (ref, totalGems) => {
+        setIsProcessingStore(false);
+        buyGemsWithPaystack(totalGems, ref);
+      },
+      onClose: () => setIsProcessingStore(false),
+      onError: (err) => {
+        setIsProcessingStore(false);
+        console.error('Paystack error:', err);
+      },
+    });
+  };
+
   return (
     <div className="space-y-4 pb-24 pt-1">
       {/* Top Segmented Navigation */}
-      <div className="flex bg-slate-900/90 p-1 rounded-2xl border border-slate-800">
+      <div className="grid grid-cols-4 bg-slate-900/90 p-1 rounded-2xl border border-slate-800 gap-1">
         <button
           onClick={() => setActiveSegment('banking')}
-          className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
             activeSegment === 'banking' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <Landmark className="w-4 h-4" />
-          <span>Banking</span>
+          <Landmark className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Banking</span>
+          <span className="sm:hidden">Bank</span>
         </button>
 
         <button
           onClick={() => setActiveSegment('credit')}
-          className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
             activeSegment === 'credit' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <CreditCard className="w-4 h-4" />
-          <span>Credit ({player.creditScore})</span>
+          <CreditCard className="w-3.5 h-3.5" />
+          <span>FICO {player.creditScore}</span>
         </button>
 
         <button
           onClick={() => setActiveSegment('loans')}
-          className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
             activeSegment === 'loans' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <Percent className="w-4 h-4" />
-          <span>Loans & Debt</span>
+          <Car className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Loans & Auto</span>
+          <span className="sm:hidden">Loans</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSegment('store')}
+          className={`py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+            activeSegment === 'store' 
+              ? 'bg-gradient-to-r from-cyan-600 to-indigo-600 text-white shadow-md' 
+              : 'text-cyan-400 hover:text-cyan-300'
+          }`}
+        >
+          <Gem className="w-3.5 h-3.5 text-cyan-400" />
+          <span>Store</span>
+          <span className="text-[10px] bg-cyan-950/80 border border-cyan-500/40 px-1 rounded text-cyan-300 hidden xs:inline">
+            {player.gems || 0}
+          </span>
         </button>
       </div>
 
-      {/* BANKING TAB */}
+      {/* 1. BANKING TAB */}
       {activeSegment === 'banking' && (
         <div className="space-y-3">
           <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 shadow-xl space-y-3">
@@ -150,7 +214,7 @@ export const FinanceView: React.FC = () => {
         </div>
       )}
 
-      {/* CREDIT TAB */}
+      {/* 2. CREDIT TAB */}
       {activeSegment === 'credit' && (
         <div className="space-y-4">
           {/* Credit Score Gauge & Breakdown */}
@@ -158,7 +222,7 @@ export const FinanceView: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  FICO CREDIT SCORE
+                  FICO CREDIT BUREAU
                 </span>
                 <div className="flex items-baseline gap-2 mt-0.5">
                   <span className="text-3xl font-black text-slate-100">{player.creditScore}</span>
@@ -175,16 +239,36 @@ export const FinanceView: React.FC = () => {
               </div>
             </div>
 
+            {/* Realistic Credit Growth Rules Notice */}
+            <div className="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl p-3 text-xs text-indigo-200 space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-indigo-300">
+                <Info className="w-4 h-4 shrink-0 text-indigo-400" />
+                <span>How Credit Grows in Hustle Empire</span>
+              </div>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                Credit score growth is earned through real credit history: take personal loans, finance vehicles like sedans or vans, and pay your scheduled monthly installments on time. Keeping card utilization under 30% also prevents score penalties.
+              </p>
+            </div>
+
             {/* Score Factors */}
-            <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+            <div className="grid grid-cols-3 gap-2 text-xs pt-1">
               <div className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-800">
-                <span className="text-slate-400 text-[10px] block">Payment History</span>
-                <span className="font-semibold text-emerald-400">100% On-Time</span>
+                <span className="text-slate-400 text-[10px] block">On-Time Streak</span>
+                <span className="font-bold text-emerald-400 flex items-center gap-1 mt-0.5">
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  {player.consecutiveOnTimePayments || 0} mos
+                </span>
               </div>
               <div className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-800">
-                <span className="text-slate-400 text-[10px] block">Available Credit</span>
-                <span className="font-semibold text-slate-200">
-                  {formatCurrency(totalCreditLimit - totalCardBalance)}
+                <span className="text-slate-400 text-[10px] block">Total Paid On-Time</span>
+                <span className="font-bold text-slate-200 mt-0.5 block">
+                  {player.totalOnTimePayments || 0} bills
+                </span>
+              </div>
+              <div className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-800">
+                <span className="text-slate-400 text-[10px] block">Late Marks</span>
+                <span className={`font-bold mt-0.5 block ${(player.missedPaymentsCount || 0) > 0 ? 'text-rose-400' : 'text-slate-400'}`}>
+                  {player.missedPaymentsCount || 0}
                 </span>
               </div>
             </div>
@@ -193,10 +277,9 @@ export const FinanceView: React.FC = () => {
           {/* Credit Cards list */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">
-              Your Revolving Credit Lines
+              Revolving Credit Lines
             </h4>
             {creditCards.map((card) => {
-              const canPay = player.cash >= card.balance && card.balance > 0;
               return (
                 <div
                   key={card.id}
@@ -256,16 +339,17 @@ export const FinanceView: React.FC = () => {
         </div>
       )}
 
-      {/* LOANS & DEBT TAB */}
+      {/* 3. LOANS & AUTO FINANCING TAB */}
       {activeSegment === 'loans' && (
         <div className="space-y-4">
+          {/* Active Loans & Debt Summary */}
           <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 shadow-xl space-y-3">
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  TOTAL LIABILITIES
+                  CURRENT LIABILITIES
                 </span>
-                <h3 className="text-base font-bold text-slate-100">Loans & Mortgages</h3>
+                <h3 className="text-base font-bold text-slate-100">Active Installment Accounts</h3>
               </div>
               <div className="text-right">
                 <span className="text-[10px] text-slate-400">Total Debt</span>
@@ -280,61 +364,210 @@ export const FinanceView: React.FC = () => {
               className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-2xl shadow-md flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-95"
             >
               <Plus className="w-4 h-4" />
-              <span>Apply for New Loan</span>
+              <span>Apply for Personal / Commercial Loan</span>
             </button>
           </div>
 
           {/* Active Loans list */}
           {loans.length === 0 ? (
-            <div className="bg-slate-900/80 border border-dashed border-slate-800 rounded-3xl p-6 text-center space-y-2">
-              <ShieldCheck className="w-8 h-8 text-emerald-400 mx-auto" />
-              <p className="text-xs text-slate-400">You are debt-free! No outstanding personal or business loans.</p>
+            <div className="bg-slate-900/80 border border-dashed border-slate-800 rounded-3xl p-5 text-center space-y-2">
+              <ShieldCheck className="w-7 h-7 text-emerald-400 mx-auto" />
+              <p className="text-xs text-slate-300 font-semibold">No active loan installments.</p>
+              <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
+                Finance a vehicle below or take a business loan to start establishing your on-time payment track record!
+              </p>
             </div>
           ) : (
             <div className="space-y-2.5">
-              {loans.map((loan) => (
-                <div
-                  key={loan.id}
-                  className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-2"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-100">{loan.name}</h4>
-                      <span className="text-[10px] text-slate-400">
-                        {(loan.interestRate * 100).toFixed(1)}% Rate • {loan.monthsRemaining} mos remaining
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs font-bold text-rose-400">
-                        {formatCurrency(loan.remainingBalance)}
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">
+                Active Loans ({loans.length})
+              </h4>
+              {loans.map((loan) => {
+                const canPayMonthly = player.cash >= loan.monthlyPayment;
+                return (
+                  <div
+                    key={loan.id}
+                    className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-3"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          {loan.type === 'auto' ? (
+                            <Car className="w-4 h-4 text-amber-400" />
+                          ) : (
+                            <Percent className="w-4 h-4 text-indigo-400" />
+                          )}
+                          <h4 className="text-xs sm:text-sm font-bold text-slate-100">{loan.name}</h4>
+                        </div>
+                        <span className="text-[11px] text-slate-400 block mt-0.5">
+                          {(loan.interestRate * 100).toFixed(1)}% APR • {loan.monthsRemaining} months remaining • {loan.paymentsMade || 0} payments made
+                        </span>
                       </div>
-                      <span className="text-[10px] text-slate-400">{formatCurrency(loan.monthlyPayment)}/mo</span>
+                      <div className="text-right">
+                        <div className="text-sm font-bold text-rose-400">
+                          {formatCurrency(loan.remainingBalance)}
+                        </div>
+                        <span className="text-[10px] text-slate-400">{formatCurrency(loan.monthlyPayment)}/mo</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <button
+                        disabled={!canPayMonthly}
+                        onClick={() => payMonthlyLoanDue(loan.id)}
+                        className={`py-2 px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition active:scale-95 cursor-pointer ${
+                          canPayMonthly
+                            ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md'
+                            : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                        }`}
+                        title="Pays monthly scheduled due. Boosts FICO credit score +4 to +6 on-time!"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Pay Due ({formatCurrency(loan.monthlyPayment)})</span>
+                      </button>
+
+                      <button
+                        disabled={player.cash < 200}
+                        onClick={() => payLoan(loan.id, Math.min(loan.remainingBalance, Math.max(200, loan.monthlyPayment * 2)))}
+                        className="py-2 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold rounded-xl cursor-pointer transition"
+                      >
+                        Prepay Principal
+                      </button>
+                    </div>
+
+                    <div className="text-[10px] text-emerald-400/90 font-medium flex items-center gap-1">
+                      <TrendingUp className="w-3 h-3" />
+                      <span>Paying monthly due boosts your credit score & extends your on-time streak!</span>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    <button
-                      disabled={player.cash < loan.monthlyPayment}
-                      onClick={() => payLoan(loan.id, loan.monthlyPayment)}
-                      className="py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold rounded-xl cursor-pointer"
-                    >
-                      Pay Monthly ({formatCurrency(loan.monthlyPayment)})
-                    </button>
-
-                    <button
-                      disabled={player.cash < loan.remainingBalance}
-                      onClick={() => payLoan(loan.id, loan.remainingBalance)}
-                      className="py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl cursor-pointer"
-                    >
-                      Pay Off Total
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
-          {/* Bankruptcy / Safety net button if heavily burdened */}
+          {/* Vehicle Financing Showroom */}
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between px-1">
+              <div>
+                <h4 className="text-xs font-bold text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
+                  <Car className="w-4 h-4 text-amber-400" />
+                  <span>Vehicle Financing & Auto Loans</span>
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  Drive now with a 20% down payment. Build credit with monthly on-time installments!
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {vehiclesToFinance.map((vehicle) => {
+                const isOwned = player.transportationTier >= vehicle.tier;
+                const downPercent = vehicle.downPaymentPercent || 0.20;
+                const downPayment = Math.round(vehicle.cost * downPercent);
+                const financedPrincipal = vehicle.cost - downPayment;
+                const termMonths = vehicle.financeTermMonths || 36;
+                const minScore = vehicle.minCreditScore || 580;
+                const qualifies = player.creditScore >= minScore;
+                const hasDownPayment = player.cash >= downPayment;
+
+                // Estimate monthly payment
+                const apr = player.creditScore >= 750 ? 0.055 : player.creditScore >= 680 ? 0.075 : player.creditScore >= 620 ? 0.11 : player.creditScore >= 580 ? 0.15 : 0.19;
+                const monthlyRate = apr / 12;
+                const estimatedMonthly = Math.round(
+                  (financedPrincipal * monthlyRate * Math.pow(1 + monthlyRate, termMonths)) /
+                    (Math.pow(1 + monthlyRate, termMonths) - 1)
+                );
+
+                return (
+                  <div
+                    key={vehicle.tier}
+                    className={`rounded-2xl p-4 border transition ${
+                      isOwned
+                        ? 'bg-slate-900/60 border-slate-800/80 opacity-80'
+                        : qualifies
+                        ? 'bg-slate-900/90 border-slate-800 hover:border-slate-700 shadow-md'
+                        : 'bg-slate-950/80 border-slate-900'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-bold text-white">{vehicle.name}</h4>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            {vehicle.speedMultiplier}x Speed
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-0.5">{vehicle.description}</p>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-slate-200">
+                          {formatCurrency(vehicle.cost)}
+                        </span>
+                        <span className="text-[10px] text-slate-400 block">Total MSRP</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 my-3 p-2.5 bg-slate-800/50 rounded-xl text-[11px] border border-slate-800">
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Down Payment (20%)</span>
+                        <span className={`font-bold ${hasDownPayment ? 'text-emerald-400' : 'text-slate-300'}`}>
+                          {formatCurrency(downPayment)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Monthly Note</span>
+                        <span className="font-bold text-amber-400">
+                          {formatCurrency(estimatedMonthly)}/mo
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Min Credit</span>
+                        <span className={`font-bold ${qualifies ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {minScore}+ FICO
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      {isOwned ? (
+                        <div className="w-full py-2 bg-slate-800 rounded-xl text-xs font-bold text-emerald-400 text-center flex items-center justify-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Vehicle Already In Fleet</span>
+                        </div>
+                      ) : (
+                        <>
+                          <button
+                            disabled={!qualifies || !hasDownPayment}
+                            onClick={() => financeVehicle(vehicle.tier)}
+                            className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer ${
+                              qualifies && hasDownPayment
+                                ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white shadow-md'
+                                : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                            }`}
+                          >
+                            <Car className="w-3.5 h-3.5" />
+                            <span>Finance ({formatCurrency(downPayment)} Down)</span>
+                          </button>
+
+                          <button
+                            disabled={player.cash < vehicle.cost}
+                            onClick={() => buyTransportation(vehicle.tier)}
+                            className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold rounded-xl cursor-pointer"
+                            title="Buy cash outright"
+                          >
+                            Cash Outright
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Bankruptcy safety net */}
           {totalDebt > 10000 && (
             <div className="p-3.5 bg-rose-950/20 border border-rose-900/40 rounded-2xl space-y-2 text-center">
               <span className="text-xs font-bold text-rose-300">Overleveraged or Insolvent?</span>
@@ -349,6 +582,153 @@ export const FinanceView: React.FC = () => {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* 4. PREMIUM STORE TAB (PAYSTACK) */}
+      {activeSegment === 'store' && (
+        <div className="space-y-4">
+          <div className="bg-gradient-to-r from-indigo-950/90 via-slate-900 to-purple-950/90 border border-indigo-500/40 rounded-3xl p-4 sm:p-5 shadow-xl space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-cyan-500/20 rounded-xl border border-cyan-500/40">
+                  <Gem className="w-5 h-5 text-cyan-400 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">Diamond Store</h3>
+                  <p className="text-xs text-slate-400">Powered by Paystack</p>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <span className="text-[10px] text-slate-400 block">Available Gems</span>
+                <span className="text-base font-black text-cyan-300 flex items-center gap-1 justify-end">
+                  <Gem className="w-4 h-4 text-cyan-400" />
+                  {player.gems || 0}
+                </span>
+              </div>
+            </div>
+
+            {/* Currency selector */}
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700">
+                <button
+                  onClick={() => setStoreCurrency('USD')}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    storeCurrency === 'USD' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  USD ($)
+                </button>
+                <button
+                  onClick={() => setStoreCurrency('NGN')}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    storeCurrency === 'NGN' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  NGN (₦)
+                </button>
+              </div>
+
+              <button
+                onClick={() => setIsStoreModalOpen(true)}
+                className="text-xs font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 cursor-pointer"
+              >
+                <span>Full Modal View</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Bundles Grid */}
+          <div className="space-y-2.5">
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">
+              Acquire Gem Bundles
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {GEM_BUNDLES.map((bundle) => {
+                const total = bundle.gems + bundle.bonusGems;
+                const priceFormatted = storeCurrency === 'NGN' ? `₦${bundle.priceNGN.toLocaleString()}` : `$${bundle.priceUSD.toFixed(2)}`;
+
+                return (
+                  <div
+                    key={bundle.id}
+                    className={`rounded-2xl p-4 border flex flex-col justify-between transition ${
+                      bundle.popular
+                        ? 'bg-slate-900 border-indigo-500 shadow-md shadow-indigo-950/40'
+                        : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-bold text-white text-sm">{bundle.name}</h4>
+                        {bundle.badge && (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            {bundle.badge}
+                          </span>
+                        )}
+                      </div>
+                      <div className="my-2.5 flex items-baseline gap-1.5">
+                        <Gem className="w-4 h-4 text-cyan-400" />
+                        <span className="text-lg font-black text-white">{total.toLocaleString()}</span>
+                        <span className="text-xs font-bold text-cyan-300">Gems</span>
+                        {bundle.bonusGems > 0 && (
+                          <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-600/40 px-1 rounded">
+                            +{bundle.bonusGems} Free
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleBuyBundle(bundle)}
+                      disabled={isProcessingStore}
+                      className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl cursor-pointer shadow-sm transition active:scale-95"
+                    >
+                      Buy {priceFormatted} (Paystack)
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Exchange gems for in-game money */}
+          <div className="space-y-2.5 pt-2">
+            <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider px-1 flex items-center gap-1.5">
+              <DollarSign className="w-3.5 h-3.5" />
+              <span>Convert Gems into Game Money</span>
+            </h4>
+            <div className="space-y-2">
+              {GEM_CASH_EXCHANGES.slice(0, 3).map((opt) => {
+                const canAfford = (player.gems || 0) >= opt.gemsCost;
+                return (
+                  <div
+                    key={opt.id}
+                    className="p-3 bg-slate-900/90 border border-slate-800 rounded-2xl flex items-center justify-between gap-3"
+                  >
+                    <div>
+                      <h5 className="font-bold text-white text-xs">{opt.title}</h5>
+                      <p className="text-[10px] text-slate-400">{opt.description}</p>
+                    </div>
+
+                    <button
+                      disabled={!canAfford}
+                      onClick={() => exchangeGemsForCash(opt.gemsCost, opt.cashReward)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 shrink-0 ${
+                        canAfford
+                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer'
+                          : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                      }`}
+                    >
+                      <Gem className="w-3 h-3 text-cyan-300" />
+                      <span>{opt.gemsCost} 💎</span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 
