@@ -18,8 +18,12 @@ import {
   Building,
   Save,
   Home,
-  AlertCircle
+  AlertCircle,
+  Smartphone,
+  Download
 } from 'lucide-react';
+import { usePWAInstall } from '../../hooks/usePWAInstall';
+import { IOSInstallModal } from '../pwa/IOSInstallModal';
 
 interface HeaderDashboardProps {
   onOpenRest: () => void;
@@ -28,7 +32,9 @@ interface HeaderDashboardProps {
 
 export const HeaderDashboard: React.FC<HeaderDashboardProps> = ({ onOpenRest, onOpenNews }) => {
   const { player, netWorth, sleep, activeSlotId, manualSave, exitToMainMenu } = useGame();
+  const { isInstalled, isInstallable, isIOS, install } = usePWAInstall();
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [showIOSInstall, setShowIOSInstall] = useState(false);
   const phase = getDayPhase(player.currentHour);
   const creditTier = getCreditScoreTier(player.creditScore);
 
@@ -62,6 +68,29 @@ export const HeaderDashboard: React.FC<HeaderDashboardProps> = ({ onOpenRest, on
         </div>
 
         <div className="flex items-center gap-1">
+          {!isInstalled && (
+            <button
+              onClick={() => {
+                if (isIOS) {
+                  setShowIOSInstall(true);
+                } else if (isInstallable) {
+                  install();
+                } else {
+                  setShowIOSInstall(true);
+                }
+              }}
+              className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-indigo-900 to-indigo-800 hover:from-indigo-800 hover:to-indigo-700 border border-indigo-600/70 text-indigo-200 rounded-md font-bold transition active:scale-95 cursor-pointer shadow-sm"
+              title="Install App to Home Screen"
+            >
+              {isInstallable ? (
+                <Download className="w-3 h-3 text-emerald-400" />
+              ) : (
+                <Smartphone className="w-3 h-3 text-indigo-300" />
+              )}
+              <span className="text-[10px]">App</span>
+            </button>
+          )}
+
           <button
             onClick={manualSave}
             className="flex items-center gap-1 px-2 py-0.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/80 hover:border-slate-600 text-slate-200 rounded-md font-bold transition active:scale-95 cursor-pointer"
@@ -243,6 +272,11 @@ export const HeaderDashboard: React.FC<HeaderDashboardProps> = ({ onOpenRest, on
           </div>
         </div>
       )}
+      {/* iOS PWA Install Guide Modal */}
+      <IOSInstallModal
+        isOpen={showIOSInstall}
+        onClose={() => setShowIOSInstall(false)}
+      />
     </header>
   );
 };

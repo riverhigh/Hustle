@@ -23,8 +23,12 @@ import {
   Check,
   Briefcase,
   TrendingUp,
-  CreditCard
+  CreditCard,
+  Smartphone,
+  Download
 } from 'lucide-react';
+import { usePWAInstall } from '../../hooks/usePWAInstall';
+import { IOSInstallModal } from '../pwa/IOSInstallModal';
 
 const RANDOM_NAMES = [
   'Jordan Vance',
@@ -48,6 +52,9 @@ export const MainMenuView: React.FC = () => {
     startNewGameInSlot, 
     deleteGameSlot 
   } = useGame();
+
+  const { isInstalled, isInstallable, isIOS, isAndroid, install } = usePWAInstall();
+  const [showIOSModal, setShowIOSModal] = useState(false);
 
   // Menu screen mode: 'main' | 'new_game' | 'load_game'
   const [screenMode, setScreenMode] = useState<'main' | 'new_game' | 'load_game'>('main');
@@ -249,6 +256,47 @@ export const MainMenuView: React.FC = () => {
                   {nonEmptySlots.length}/3 Saved
                 </div>
               </button>
+
+              {/* PWA Mobile Install Button (if not already running in standalone) */}
+              {!isInstalled && (
+                <button
+                  id="btn-menu-install-pwa"
+                  onClick={() => {
+                    if (isIOS) {
+                      setShowIOSModal(true);
+                    } else if (isInstallable) {
+                      install();
+                    } else {
+                      setShowIOSModal(true);
+                    }
+                  }}
+                  className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 hover:border-indigo-500/70 border border-indigo-500/30 text-slate-100 font-bold shadow-md flex items-center justify-between transition-all active:scale-98 cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-950/80 border border-indigo-700/60 flex items-center justify-center text-indigo-300 group-hover:text-indigo-100">
+                      {isInstallable ? (
+                        <Download className="w-5 h-5 text-emerald-400" />
+                      ) : (
+                        <Smartphone className="w-5 h-5 text-indigo-300" />
+                      )}
+                    </div>
+                    <div className="text-left">
+                      <div className="text-sm font-black flex items-center gap-1.5">
+                        <span>Install Mobile App</span>
+                        <span className="px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 text-[9px] font-extrabold uppercase tracking-wide">
+                          {isIOS ? 'iOS' : isAndroid ? 'Android' : 'PWA'}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-400 font-normal">
+                        Full-screen gameplay, faster load & offline saves
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-xs font-bold text-indigo-300 bg-indigo-950/80 border border-indigo-700/60 px-2.5 py-1 rounded-lg">
+                    Install
+                  </div>
+                </button>
+              )}
             </div>
 
             {/* Footer Information */}
@@ -688,6 +736,11 @@ export const MainMenuView: React.FC = () => {
           </div>
         </div>
       )}
+      {/* iOS PWA Install Guide Modal */}
+      <IOSInstallModal
+        isOpen={showIOSModal}
+        onClose={() => setShowIOSModal(false)}
+      />
     </div>
   );
 };

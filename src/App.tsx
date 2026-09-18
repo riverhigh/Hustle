@@ -4,6 +4,7 @@ import { MainMenuView } from './components/menu/MainMenuView';
 import { HeaderDashboard } from './components/common/HeaderDashboard';
 import { BottomNavigation } from './components/common/BottomNavigation';
 import { FeedbackOverlay } from './components/common/FeedbackOverlay';
+import { PWABanner } from './components/pwa/PWABanner';
 import { RestModal } from './components/modals/RestModal';
 import { NewsModal } from './components/modals/NewsModal';
 import { EventModal } from './components/modals/EventModal';
@@ -23,6 +24,9 @@ const MainAppContent: React.FC = () => {
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex justify-center selection:bg-indigo-500 selection:text-white">
       {/* Mobile-constrained responsive wrapper */}
       <div className="w-full max-w-md sm:max-w-xl md:max-w-2xl min-h-screen flex flex-col bg-slate-950 shadow-2xl relative">
+        {/* PWA Android & iOS Install / Offline Banner */}
+        <PWABanner />
+
         {/* Sticky Dashboard Header */}
         <HeaderDashboard
           onOpenRest={() => setIsRestModalOpen(true)}
@@ -66,8 +70,11 @@ const AppRouter: React.FC = () => {
   if (activeSlotId === null) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex justify-center selection:bg-indigo-500 selection:text-white">
-        <FeedbackOverlay />
-        <MainMenuView />
+        <div className="w-full max-w-md sm:max-w-xl md:max-w-2xl min-h-screen flex flex-col bg-slate-950 shadow-2xl relative">
+          <PWABanner />
+          <FeedbackOverlay />
+          <MainMenuView />
+        </div>
       </div>
     );
   }
