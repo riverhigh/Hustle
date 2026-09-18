@@ -25,10 +25,15 @@ import {
   TrendingUp,
   CreditCard,
   Smartphone,
-  Download
+  Download,
+  RotateCw,
+  RefreshCw,
+  Info
 } from 'lucide-react';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
+import { usePWAUpdate } from '../../hooks/usePWAUpdate';
 import { IOSInstallModal } from '../pwa/IOSInstallModal';
+import { PWAUpdateModal } from '../pwa/PWAUpdateModal';
 
 const RANDOM_NAMES = [
   'Jordan Vance',
@@ -54,7 +59,10 @@ export const MainMenuView: React.FC = () => {
   } = useGame();
 
   const { isInstalled, isInstallable, isIOS, isAndroid, install } = usePWAInstall();
+  const { needRefresh, isChecking, checkForUpdates, updateApp } = usePWAUpdate();
   const [showIOSModal, setShowIOSModal] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [menuToast, setMenuToast] = useState<string | null>(null);
 
   // Menu screen mode: 'main' | 'new_game' | 'load_game'
   const [screenMode, setScreenMode] = useState<'main' | 'new_game' | 'load_game'>('main');
@@ -297,12 +305,72 @@ export const MainMenuView: React.FC = () => {
                   </div>
                 </button>
               )}
+
+              {/* NEW UPDATE READY ACTION */}
+              {needRefresh && (
+                <button
+                  id="btn-menu-pwa-update"
+                  onClick={() => updateApp()}
+                  className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold shadow-lg flex items-center justify-between transition-all active:scale-98 cursor-pointer border border-emerald-400/50 animate-pulse"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white shrink-0">
+                      <Sparkles className="w-5 h-5 text-amber-300" />
+                    </div>
+                    <div className="text-left">
+                      <div className="text-sm font-black">New Update Ready!</div>
+                      <div className="text-xs text-emerald-100 font-normal">
+                        Tap to apply latest fixes & features immediately
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-xs font-black bg-white text-slate-900 px-3 py-1.5 rounded-xl shadow shrink-0">
+                    Update Now
+                  </div>
+                </button>
+              )}
+
+              {/* Check for Updates & Refresh Button */}
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  id="btn-menu-check-updates"
+                  disabled={isChecking}
+                  onClick={async () => {
+                    setMenuToast('Checking for latest updates...');
+                    const res = await checkForUpdates(false);
+                    setMenuToast(res.message);
+                    setTimeout(() => setMenuToast(null), 3500);
+                  }}
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800/90 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer shadow-sm disabled:opacity-50"
+                  title="Check server for updates or reload game assets"
+                >
+                  <RotateCw className={`w-3.5 h-3.5 text-indigo-400 ${isChecking ? 'animate-spin' : ''}`} />
+                  <span>{isChecking ? 'Checking Server...' : 'Check for Updates & Refresh'}</span>
+                </button>
+
+                <button
+                  id="btn-menu-pwa-info"
+                  onClick={() => setShowUpdateModal(true)}
+                  className="py-2.5 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800/90 border border-slate-800 hover:border-slate-700 text-indigo-300 hover:text-indigo-200 text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer shadow-sm"
+                  title="How PWA updates work without reinstalling"
+                >
+                  <Info className="w-3.5 h-3.5" />
+                  <span className="hidden xs:inline">How It Works</span>
+                </button>
+              </div>
+
+              {/* In-Menu Feedback Toast */}
+              {menuToast && (
+                <div className="p-2 rounded-xl bg-indigo-950/80 border border-indigo-700/60 text-indigo-200 text-xs text-center font-bold animate-in fade-in">
+                  {menuToast}
+                </div>
+              )}
             </div>
 
             {/* Footer Information */}
             <div className="text-center text-[11px] text-slate-500 space-y-1">
-              <p>Hustle & Empire Simulation • Version 1.2.0</p>
-              <p>Offline persistent storage • Auto-saves after every action</p>
+              <p>Hustle & Empire Simulation • Version 1.2.0 (Auto-Updating PWA)</p>
+              <p>No need to redownload • Swipe down or tap Refresh anytime to update</p>
             </div>
           </div>
         )}
@@ -740,6 +808,12 @@ export const MainMenuView: React.FC = () => {
       <IOSInstallModal
         isOpen={showIOSModal}
         onClose={() => setShowIOSModal(false)}
+      />
+
+      {/* PWA Update Guide & Manual Action Modal */}
+      <PWAUpdateModal
+        isOpen={showUpdateModal}
+        onClose={() => setShowUpdateModal(false)}
       />
     </div>
   );

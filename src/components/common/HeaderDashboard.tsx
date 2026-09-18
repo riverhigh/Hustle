@@ -21,10 +21,13 @@ import {
   AlertCircle,
   Smartphone,
   Download,
-  Gem
+  Gem,
+  RotateCw
 } from 'lucide-react';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
+import { usePWAUpdate } from '../../hooks/usePWAUpdate';
 import { IOSInstallModal } from '../pwa/IOSInstallModal';
+import { PWAUpdateModal } from '../pwa/PWAUpdateModal';
 
 interface HeaderDashboardProps {
   onOpenRest: () => void;
@@ -34,8 +37,11 @@ interface HeaderDashboardProps {
 export const HeaderDashboard: React.FC<HeaderDashboardProps> = ({ onOpenRest, onOpenNews }) => {
   const { player, netWorth, sleep, activeSlotId, manualSave, exitToMainMenu, setIsStoreModalOpen } = useGame();
   const { isInstalled, isInstallable, isIOS, install } = usePWAInstall();
+  const { needRefresh, isChecking, checkForUpdates, updateApp } = usePWAUpdate();
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showIOSInstall, setShowIOSInstall] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [refreshToast, setRefreshToast] = useState<string | null>(null);
   const phase = getDayPhase(player.currentHour);
   const creditTier = getCreditScoreTier(player.creditScore);
 
@@ -102,6 +108,32 @@ export const HeaderDashboard: React.FC<HeaderDashboardProps> = ({ onOpenRest, on
               <span className="text-[10px]">App</span>
             </button>
           )}
+
+          {/* Refresh App & Check for Updates Button */}
+          <button
+            onClick={async () => {
+              if (needRefresh) {
+                await updateApp();
+              } else {
+                setRefreshToast('Checking for updates...');
+                const res = await checkForUpdates(false);
+                setRefreshToast(res.message);
+                setTimeout(() => setRefreshToast(null), 3200);
+              }
+            }}
+            className={`relative flex items-center gap-1 px-2 py-0.5 border rounded-md font-bold transition active:scale-95 cursor-pointer ${
+              needRefresh
+                ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400 animate-pulse'
+                : 'bg-slate-800 hover:bg-slate-700 border-slate-700/80 text-slate-300'
+            }`}
+            title={needRefresh ? 'New update available! Tap to reload.' : 'Check for updates & refresh'}
+          >
+            <RotateCw className={`w-3 h-3 ${isChecking ? 'animate-spin text-indigo-400' : needRefresh ? 'text-white' : 'text-slate-400'}`} />
+            <span className="hidden xs:inline">{needRefresh ? 'Update' : 'Refresh'}</span>
+            {needRefresh && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+            )}
+          </button>
 
           <button
             onClick={manualSave}
@@ -284,10 +316,24 @@ export const HeaderDashboard: React.FC<HeaderDashboardProps> = ({ onOpenRest, on
           </div>
         </div>
       )}
+      {/* Toast Feedback for Refresh Check */}
+      {refreshToast && (
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 px-3 py-1.5 rounded-full bg-indigo-950/95 border border-indigo-500/50 shadow-2xl text-[11px] font-bold text-indigo-200 flex items-center gap-1.5 animate-in fade-in slide-in-from-top-2">
+          <RotateCw className="w-3 h-3 text-indigo-400" />
+          <span>{refreshToast}</span>
+        </div>
+      )}
+
       {/* iOS PWA Install Guide Modal */}
       <IOSInstallModal
         isOpen={showIOSInstall}
         onClose={() => setShowIOSInstall(false)}
+      />
+
+      {/* PWA Update & Refresh Guide Modal */}
+      <PWAUpdateModal
+        isOpen={showUpdateModal}
+        onClose={() => setShowUpdateModal(false)}
       />
     </header>
   );

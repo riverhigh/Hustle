@@ -14,6 +14,7 @@ import { PropertiesView } from './components/properties/PropertiesView';
 import { FinanceView } from './components/finance/FinanceView';
 import { MarketView } from './components/market/MarketView';
 import { SelfView } from './components/self/SelfView';
+import { PullToRefresh } from './components/pwa/PullToRefresh';
 
 const MainAppContent: React.FC = () => {
   const { activeTab, isStoreModalOpen, setIsStoreModalOpen } = useGame();
@@ -24,23 +25,25 @@ const MainAppContent: React.FC = () => {
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex justify-center selection:bg-indigo-500 selection:text-white">
       {/* Mobile-constrained responsive wrapper */}
       <div className="w-full max-w-md sm:max-w-xl md:max-w-2xl min-h-screen flex flex-col bg-slate-950 shadow-2xl relative">
-        {/* PWA Android & iOS Install / Offline Banner */}
-        <PWABanner />
+        <PullToRefresh>
+          {/* PWA Android & iOS Install / Offline Banner */}
+          <PWABanner />
 
-        {/* Sticky Dashboard Header */}
-        <HeaderDashboard
-          onOpenRest={() => setIsRestModalOpen(true)}
-          onOpenNews={() => setIsNewsModalOpen(true)}
-        />
+          {/* Sticky Dashboard Header */}
+          <HeaderDashboard
+            onOpenRest={() => setIsRestModalOpen(true)}
+            onOpenNews={() => setIsNewsModalOpen(true)}
+          />
 
-        {/* Interactive Main View Port */}
-        <main className="flex-1 px-3.5 pt-3">
-          {activeTab === 'hustle' && <HustleView />}
-          {activeTab === 'properties' && <PropertiesView />}
-          {activeTab === 'finance' && <FinanceView />}
-          {activeTab === 'market' && <MarketView />}
-          {activeTab === 'self' && <SelfView />}
-        </main>
+          {/* Interactive Main View Port */}
+          <main className="flex-1 px-3.5 pt-3">
+            {activeTab === 'hustle' && <HustleView />}
+            {activeTab === 'properties' && <PropertiesView />}
+            {activeTab === 'finance' && <FinanceView />}
+            {activeTab === 'market' && <MarketView />}
+            {activeTab === 'self' && <SelfView />}
+          </main>
+        </PullToRefresh>
 
         {/* Fixed Bottom Navigation */}
         <BottomNavigation />
@@ -72,8 +75,10 @@ const AppRouter: React.FC = () => {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex justify-center selection:bg-indigo-500 selection:text-white">
         <div className="w-full max-w-md sm:max-w-xl md:max-w-2xl min-h-screen flex flex-col bg-slate-950 shadow-2xl relative">
-          <PWABanner />
-          <MainMenuView />
+          <PullToRefresh>
+            <PWABanner />
+            <MainMenuView />
+          </PullToRefresh>
         </div>
       </div>
     );

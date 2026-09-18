@@ -20,6 +20,7 @@ import {
   PropertyAreaId,
   Tenant,
   SaveSlotMeta,
+  EducationCourse,
 } from '../types/game';
 import {
   INITIAL_PLAYER,
@@ -27,6 +28,7 @@ import {
   TRANSPORTATION_TIERS,
   MEAL_TIERS,
   INITIAL_JOBS,
+  EDUCATION_COURSES,
   INITIAL_STOCKS,
   INITIAL_PROPERTIES_MARKET,
   INITIAL_ACHIEVEMENTS,
@@ -49,6 +51,7 @@ interface GameContextType {
   creditCards: CreditCard[];
   loans: Loan[];
   availableJobs: JobOpportunity[];
+  educationCourses: EducationCourse[];
   ownedBusinesses: Business[];
   marketProperties: Property[];
   ownedProperties: Property[];
@@ -83,6 +86,7 @@ interface GameContextType {
   setActiveTab: (tab: 'hustle' | 'properties' | 'finance' | 'market' | 'self') => void;
   advanceTime: (minutes: number) => void;
   doJob: (jobId: string) => boolean;
+  enrollInEducation: (courseId: string) => boolean;
   eatMeal: (tier: number) => boolean;
   sleep: () => void;
   takeNap: () => void;
@@ -243,6 +247,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   });
 
   const [availableJobs, setAvailableJobs] = useState<JobOpportunity[]>(INITIAL_JOBS);
+  const [educationCourses] = useState<EducationCourse[]>(EDUCATION_COURSES);
   const [ownedBusinesses, setOwnedBusinesses] = useState<Business[]>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_businesses');
@@ -611,22 +616,27 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     // 4. Rent accrual on properties
+    let autoCollectedRent = 0;
     setOwnedProperties((prevProps) =>
       prevProps.map((p) => {
         if (!p.tenant) return p;
         // Tenant pays daily micro-rent or chance to pay
         const dailyRent = Math.round(p.tenant.agreedRent / 30);
         if (autoCollectRentUnlocked) {
-          setPlayer((pState) => ({ ...pState, cash: pState.cash + dailyRent }));
+          autoCollectedRent += dailyRent;
           return p;
         } else {
           return {
             ...p,
-            collectedRentUnclaimed: p.collectedRentUnclaimed + dailyRent,
+            collectedRentUnclaimed: (p.collectedRentUnclaimed || 0) + dailyRent,
           };
         }
       })
     );
+
+    if (autoCollectedRent > 0) {
+      setPlayer((pState) => ({ ...pState, cash: pState.cash + autoCollectedRent }));
+    }
 
     // 5. Generate a fresh news item periodically
     const newsTopics = [
@@ -836,6 +846,15 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     }
 
+    // Education requirement check
+    if (job.requiredEducation) {
+      const hasEducation = (player.education || []).includes(job.requiredEducation.id);
+      if (!hasEducation) {
+        triggerFeedback(`Requires Degree: ${job.requiredEducation.name}! Enroll in education courses to qualify.`, 'warning');
+        return false;
+      }
+    }
+
     // Payout calculation with sales/negotiation skill bonus
     const negotiationBonus = 1 + (player.skills.negotiation.level - 1) * 0.05;
     const tipChance = 0.35 + player.skills.sales.level * 0.05;
@@ -884,6 +903,77 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (tutorialStep === 1) {
       setTutorialStep(2);
     }
+
+    return true;
+  };
+
+  // Enroll in Education / Degree Program
+  const enrollInEducation = (courseId: string): boolean => {
+    const course = educationCourses.find((c) => c.id === courseId);
+    if (!course) {
+      triggerFeedback('Education course not found.', 'warning');
+      return false;
+    }
+
+    if ((player.education || []).includes(course.id)) {
+      triggerFeedback(`You have already graduated with: ${course.name}!`, 'info');
+      return false;
+    }
+
+    if (course.prerequisiteEduId && !(player.education || []).includes(course.prerequisiteEduId)) {
+      triggerFeedback(
+        course.prerequisiteEduName || 'Prerequisite education required before enrolling!',
+        'warning'
+      );
+      return false;
+    }
+
+    if (course.minPlayerLevel && player.level < course.minPlayerLevel) {
+      triggerFeedback(`Requires Player Level ${course.minPlayerLevel} to enroll in ${course.name}!`, 'warning');
+      return false;
+    }
+
+    if (player.cash < course.cost) {
+      triggerFeedback(
+        `Tuition costs $${course.cost.toLocaleString()}. You need $${(course.cost - player.cash).toLocaleString()} more.`,
+        'warning'
+      );
+      return false;
+    }
+
+    if (player.energy < course.energyCost) {
+      triggerFeedback(
+        `Need ${course.energyCost} Energy to complete coursework! Eat a meal or rest first.`,
+        'warning'
+      );
+      return false;
+    }
+
+    // Deduct tuition cost, deduct energy, record degree
+    setPlayer((prev) => ({
+      ...prev,
+      cash: prev.cash - course.cost,
+      energy: Math.max(0, prev.energy - course.energyCost),
+      education: [...(prev.education || []), course.id],
+    }));
+
+    // Advance game time
+    advanceTime(course.timeMinutes);
+
+    // Boost Player XP
+    addPlayerXP(Math.round(course.cost * 0.05) + 30);
+
+    // Substantially boost skills!
+    course.skillsBoosted.forEach((sb) => {
+      addSkillXP(sb.skill, sb.xp);
+    });
+
+    const skillDetails = course.skillsBoosted.map((sb) => sb.label);
+    triggerFeedback(
+      `🎓 Graduated: ${course.name}!`,
+      'success',
+      [`-$${course.cost.toLocaleString()} Tuition`, `⚡ -${course.energyCost} Energy`, ...skillDetails]
+    );
 
     return true;
   };
@@ -1640,21 +1730,36 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Collect unclaimed rent
   const collectRent = (propertyId?: string) => {
-    let totalCollected = 0;
+    // 1. Calculate total from current state synchronously
+    const targetProps = propertyId
+      ? ownedProperties.filter((p) => p.id === propertyId)
+      : ownedProperties;
+
+    const totalCollected = targetProps.reduce(
+      (sum, p) => sum + (p.collectedRentUnclaimed || 0),
+      0
+    );
+
+    if (totalCollected <= 0) {
+      triggerFeedback('No unclaimed rent at this moment.', 'info');
+      return;
+    }
+
+    // 2. Clear unclaimed rent on properties
     setOwnedProperties((prev) =>
       prev.map((p) => {
         if (propertyId && p.id !== propertyId) return p;
-        totalCollected += p.collectedRentUnclaimed;
         return { ...p, collectedRentUnclaimed: 0 };
       })
     );
 
-    if (totalCollected > 0) {
-      setPlayer((prev) => ({ ...prev, cash: prev.cash + totalCollected }));
-      triggerFeedback(`Collected $${totalCollected.toLocaleString()} in Rental Income!`, 'success');
-    } else {
-      triggerFeedback('No unclaimed rent at this moment.', 'info');
-    }
+    // 3. Directly and reliably credit player's cash!
+    setPlayer((prev) => ({
+      ...prev,
+      cash: prev.cash + totalCollected,
+    }));
+
+    triggerFeedback(`Collected $${totalCollected.toLocaleString()} in Rental Income!`, 'success');
   };
 
   const toggleWatchlistProperty = (propertyId: string) => {
@@ -1970,6 +2075,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (typeof loadedPlayer.consecutiveOnTimePayments !== 'number') loadedPlayer.consecutiveOnTimePayments = 0;
       if (typeof loadedPlayer.totalOnTimePayments !== 'number') loadedPlayer.totalOnTimePayments = 0;
       if (typeof loadedPlayer.missedPaymentsCount !== 'number') loadedPlayer.missedPaymentsCount = 0;
+      if (!Array.isArray(loadedPlayer.education)) loadedPlayer.education = ['high_school_diploma'];
       setPlayer(loadedPlayer);
 
       const bRaw = localStorage.getItem(getSlotStorageKey(slotId, 'bank'));
@@ -2342,6 +2448,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         creditCards,
         loans,
         availableJobs,
+        educationCourses,
+        enrollInEducation,
         ownedBusinesses,
         marketProperties,
         ownedProperties,

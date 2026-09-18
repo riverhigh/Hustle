@@ -15,13 +15,20 @@ import {
   Sliders, 
   AlertCircle,
   CheckCircle2,
-  Lock
+  Lock,
+  GraduationCap,
+  Award,
+  BookOpen,
+  School,
+  ShieldCheck
 } from 'lucide-react';
 
 export const HustleView: React.FC = () => {
   const { 
     player, 
     availableJobs, 
+    educationCourses,
+    enrollInEducation,
     doJob, 
     ownedBusinesses, 
     startBusiness, 
@@ -32,7 +39,7 @@ export const HustleView: React.FC = () => {
     adjustBusinessPricing 
   } = useGame();
 
-  const [activeSection, setActiveSection] = useState<'gigs' | 'businesses'>('gigs');
+  const [activeSection, setActiveSection] = useState<'gigs' | 'education' | 'businesses'>('gigs');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showNewBizModal, setShowNewBizModal] = useState<boolean>(false);
   const [newBizName, setNewBizName] = useState<string>('');
@@ -44,10 +51,11 @@ export const HustleView: React.FC = () => {
   });
 
   const isMicrobusinessUnlocked = player.level >= 7 || player.unlockedFeatures.includes('microbusiness') || ownedBusinesses.length > 0;
+  const playerDegrees = player.education || [];
 
   return (
     <div className="space-y-4 pb-20 pt-1">
-      {/* Section Switcher (Gigs vs Micro-Businesses) */}
+      {/* Section Switcher (Gigs vs Education vs Micro-Businesses) */}
       <div className="flex bg-slate-900/90 p-1 rounded-2xl border border-slate-800">
         <button
           onClick={() => setActiveSection('gigs')}
@@ -62,6 +70,18 @@ export const HustleView: React.FC = () => {
         </button>
 
         <button
+          onClick={() => setActiveSection('education')}
+          className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+            activeSection === 'education'
+              ? 'bg-amber-600 text-white shadow-md'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <GraduationCap className="w-4 h-4" />
+          <span>Education ({playerDegrees.length})</span>
+        </button>
+
+        <button
           onClick={() => setActiveSection('businesses')}
           className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
             activeSection === 'businesses'
@@ -70,7 +90,7 @@ export const HustleView: React.FC = () => {
           }`}
         >
           <Building2 className="w-4 h-4" />
-          <span>My Businesses {ownedBusinesses.length > 0 && `(${ownedBusinesses.length})`}</span>
+          <span>Businesses {ownedBusinesses.length > 0 && `(${ownedBusinesses.length})`}</span>
           {!isMicrobusinessUnlocked && <Lock className="w-3 h-3 text-slate-500" />}
         </button>
       </div>
@@ -101,7 +121,8 @@ export const HustleView: React.FC = () => {
               const hasEnergy = player.energy >= job.energyCost;
               const hasTransport = !job.requiredTransportTier || player.transportationTier >= job.requiredTransportTier;
               const hasSkill = !job.requiredSkill || player.skills[job.requiredSkill.skill].level >= job.requiredSkill.minLevel;
-              const canWork = hasEnergy && hasTransport && hasSkill;
+              const hasEducation = !job.requiredEducation || playerDegrees.includes(job.requiredEducation.id);
+              const canWork = hasEnergy && hasTransport && hasSkill && hasEducation;
 
               return (
                 <div
@@ -141,6 +162,17 @@ export const HustleView: React.FC = () => {
                       <span>{job.timeMinutes}m</span>
                     </div>
 
+                    {job.requiredEducation && (
+                      <span className={`px-2 py-0.5 rounded-lg font-medium flex items-center gap-1 ${
+                        hasEducation 
+                          ? 'bg-emerald-950/30 border border-emerald-900/50 text-emerald-300' 
+                          : 'bg-amber-950/30 border border-amber-900/50 text-amber-300'
+                      }`}>
+                        <GraduationCap className="w-3 h-3" />
+                        <span>{hasEducation ? 'Degree Verified' : 'Degree Required'}</span>
+                      </span>
+                    )}
+
                     {job.skillRewards.map((sr, idx) => (
                       <span
                         key={idx}
@@ -151,7 +183,26 @@ export const HustleView: React.FC = () => {
                     ))}
                   </div>
 
-                  {/* Lock Warning if missing requirements */}
+                  {/* Education Lock Notice */}
+                  {job.requiredEducation && !hasEducation && (
+                    <div className="flex items-center justify-between text-[11px] text-amber-300 bg-amber-950/30 px-3 py-2 rounded-xl border border-amber-800/40">
+                      <div className="flex items-center gap-1.5">
+                        <GraduationCap className="w-4 h-4 text-amber-400 shrink-0" />
+                        <div>
+                          <span>Requires: </span>
+                          <span className="font-bold text-amber-200">{job.requiredEducation.name}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setActiveSection('education')}
+                        className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-[10px] transition active:scale-95 cursor-pointer shadow-sm shrink-0"
+                      >
+                        Enroll Now
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Lock Warning if missing skills/transport */}
                   {(!hasTransport || !hasSkill) && (
                     <div className="flex items-center gap-1.5 text-[11px] text-rose-400 bg-rose-950/20 px-2.5 py-1 rounded-xl border border-rose-900/30">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0" />
@@ -175,6 +226,204 @@ export const HustleView: React.FC = () => {
                   >
                     <span>WORK SHIFT</span>
                     <ArrowUpRight className="w-4 h-4" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* EDUCATION SECTION */}
+      {activeSection === 'education' && (
+        <div className="space-y-4">
+          {/* Header Overview Card */}
+          <div className="bg-gradient-to-r from-slate-900 via-amber-950/30 to-slate-900 border border-amber-900/40 rounded-3xl p-4 shadow-xl space-y-2.5">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1">
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  HIGHER EDUCATION & DEGREE PROGRAMS
+                </span>
+                <h3 className="text-base font-bold text-slate-100 mt-0.5">Professional Certifications</h3>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] text-slate-400">YOUR CASH</span>
+                <div className="text-sm font-bold text-emerald-400">{formatCurrency(player.cash)}</div>
+              </div>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Investing tuition in formal degrees substantially accelerates your <strong>Skill Masteries</strong>, raises your career tier, and qualifies you for lucrative high-tier jobs and executive positions.
+            </p>
+            <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center gap-1.5 text-[11px]">
+              <span className="text-slate-400">Earned Credentials:</span>
+              <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 font-semibold border border-slate-700/60">
+                High School Diploma
+              </span>
+              {playerDegrees
+                .filter((d) => d !== 'high_school_diploma')
+                .map((dId) => {
+                  const c = educationCourses.find((item) => item.id === dId);
+                  return (
+                    <span
+                      key={dId}
+                      className="px-2 py-0.5 rounded-md bg-emerald-950/50 text-emerald-300 font-semibold border border-emerald-800/60 flex items-center gap-1"
+                    >
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                      {c ? c.name : dId}
+                    </span>
+                  );
+                })}
+            </div>
+          </div>
+
+          {/* Courses List */}
+          <div className="space-y-3">
+            {educationCourses.map((course) => {
+              const isCompleted = playerDegrees.includes(course.id);
+              const hasPrerequisite = !course.prerequisiteEduId || playerDegrees.includes(course.prerequisiteEduId);
+              const hasLevel = !course.minPlayerLevel || player.level >= course.minPlayerLevel;
+              const hasCash = player.cash >= course.cost;
+              const hasEnergy = player.energy >= course.energyCost;
+              const canEnroll = !isCompleted && hasPrerequisite && hasLevel && hasCash && hasEnergy;
+
+              // Badge color by degree type
+              const typeColor = 
+                course.degreeType === 'Master' ? 'bg-purple-950/40 text-purple-300 border-purple-800/50' :
+                course.degreeType === 'Bachelor' ? 'bg-blue-950/40 text-blue-300 border-blue-800/50' :
+                course.degreeType === 'Associate' ? 'bg-cyan-950/40 text-cyan-300 border-cyan-800/50' :
+                course.degreeType === 'License' ? 'bg-amber-950/40 text-amber-300 border-amber-800/50' :
+                'bg-emerald-950/40 text-emerald-300 border-emerald-800/50';
+
+              return (
+                <div
+                  key={course.id}
+                  className={`bg-slate-900/90 border rounded-2xl p-4 shadow-md space-y-3 transition ${
+                    isCompleted 
+                      ? 'border-emerald-800/40 bg-slate-900/60' 
+                      : 'border-slate-800/90 hover:border-slate-700/80'
+                  }`}
+                >
+                  {/* Top Bar: Institution & Degree Type */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${typeColor}`}>
+                          {course.degreeType}
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                          <School className="w-3 h-3 text-slate-500" />
+                          {course.institution}
+                        </span>
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
+                        {course.name}
+                        {isCompleted && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+                      </h4>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <div className="text-base font-bold text-amber-400">
+                        {formatCurrency(course.cost)}
+                      </div>
+                      <span className="text-[10px] text-slate-500">tuition fee</span>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-slate-400 leading-relaxed">{course.description}</p>
+
+                  {/* Skills Boosted Showcase */}
+                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 space-y-1.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      SKILLS BOOSTED ON GRADUATION:
+                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {course.skillsBoosted.map((boost, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-0.5 rounded-md bg-indigo-950/50 text-indigo-300 text-[11px] font-bold border border-indigo-800/50"
+                        >
+                          {boost.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Career unlock summary */}
+                  <div className="text-[11px] text-slate-300 flex items-center gap-1.5">
+                    <Briefcase className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span>{course.unlocksJobsSummary}</span>
+                  </div>
+
+                  {/* Costs / Requirements Bar */}
+                  <div className="flex items-center gap-2 text-[11px]">
+                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded-lg border ${
+                      hasEnergy ? 'bg-slate-800/80 border-slate-700/60 text-slate-300' : 'bg-rose-950/30 border-rose-900/50 text-rose-300'
+                    }`}>
+                      <Zap className="w-3 h-3 text-amber-400" />
+                      <span>{course.energyCost} Energy</span>
+                    </div>
+
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-slate-300">
+                      <Clock className="w-3 h-3 text-slate-400" />
+                      <span>{Math.round(course.timeMinutes / 60)}h Study Time</span>
+                    </div>
+                  </div>
+
+                  {/* Missing Prerequisite or Level Warning */}
+                  {!hasPrerequisite && course.prerequisiteEduName && (
+                    <div className="flex items-center gap-1.5 text-[11px] text-rose-400 bg-rose-950/30 px-3 py-1.5 rounded-xl border border-rose-900/40">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{course.prerequisiteEduName}</span>
+                    </div>
+                  )}
+
+                  {!hasLevel && course.minPlayerLevel && (
+                    <div className="flex items-center gap-1.5 text-[11px] text-rose-400 bg-rose-950/30 px-3 py-1.5 rounded-xl border border-rose-900/40">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>Requires Player Level {course.minPlayerLevel}</span>
+                    </div>
+                  )}
+
+                  {/* Action Button */}
+                  <button
+                    disabled={!canEnroll}
+                    onClick={() => enrollInEducation(course.id)}
+                    className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition shadow-md active:scale-98 ${
+                      isCompleted
+                        ? 'bg-emerald-950/50 text-emerald-300 border border-emerald-800/50 cursor-default'
+                        : canEnroll
+                        ? 'bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 shadow-amber-950/40'
+                        : 'bg-slate-800 text-slate-500 border border-slate-700/60 cursor-not-allowed'
+                    }`}
+                  >
+                    {isCompleted ? (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span>GRADUATED & DEGREE EARNED</span>
+                      </>
+                    ) : !hasCash ? (
+                      <>
+                        <AlertCircle className="w-4 h-4 text-rose-400" />
+                        <span>NEED {formatCurrency(course.cost - player.cash)} MORE TUITION</span>
+                      </>
+                    ) : !hasEnergy ? (
+                      <>
+                        <Zap className="w-4 h-4 text-amber-400" />
+                        <span>NEED {course.energyCost} ENERGY (REST OR EAT FIRST)</span>
+                      </>
+                    ) : !hasPrerequisite ? (
+                      <>
+                        <Lock className="w-4 h-4 text-slate-400" />
+                        <span>PREREQUISITE DEGREE REQUIRED</span>
+                      </>
+                    ) : (
+                      <>
+                        <GraduationCap className="w-4 h-4" />
+                        <span>ENROLL & GRADUATE ({formatCurrency(course.cost)})</span>
+                      </>
+                    )}
                   </button>
                 </div>
               );

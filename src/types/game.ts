@@ -53,6 +53,7 @@ export interface PlayerProfile {
   consecutiveOnTimePayments: number; // Payment history streak for credit growth
   totalOnTimePayments: number;
   missedPaymentsCount: number;
+  education: string[]; // List of completed degrees / certifications (e.g. 'edu_trade_cert', 'edu_cs_bachelor')
 }
 
 export interface BankAccount {
@@ -101,8 +102,26 @@ export interface JobOpportunity {
   bonusTipMax?: number;
   requiredSkill?: { skill: SkillName; minLevel: number };
   requiredTransportTier?: number;
+  requiredEducation?: { id: string; name: string };
   skillRewards: { skill: SkillName; xp: number }[];
   xpReward: number;
+  icon: string;
+}
+
+export interface EducationCourse {
+  id: string;
+  name: string;
+  degreeType: 'Certificate' | 'Associate' | 'Bachelor' | 'Master' | 'License';
+  institution: string;
+  cost: number;
+  energyCost: number;
+  timeMinutes: number;
+  description: string;
+  skillsBoosted: { skill: SkillName; xp: number; label: string }[];
+  unlocksJobsSummary: string;
+  prerequisiteEduId?: string;
+  prerequisiteEduName?: string;
+  minPlayerLevel?: number;
   icon: string;
 }
 
