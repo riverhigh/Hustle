@@ -30,8 +30,15 @@ import {
   Coins,
   Share2,
   Lock,
-  ArrowRight
+  ArrowRight,
+  Crown,
+  Receipt,
+  Briefcase
 } from 'lucide-react';
+import { FarbesApp } from './FarbesApp';
+import { VipClubApp } from './VipClubApp';
+import { JobsApp } from './JobsApp';
+import { FinanceApp } from './FinanceApp';
 
 interface ScannedDeal {
   id: string;
@@ -86,11 +93,6 @@ export const PhoneView: React.FC = () => {
   const [selectedStockId, setSelectedStockId] = useState<string | null>(null);
   const [tradeShares, setTradeShares] = useState(1);
   const [stockTradeToast, setStockTradeToast] = useState<string | null>(null);
-
-  // Bank App State
-  const [bankTab, setBankTab] = useState<'checking' | 'savings'>('checking');
-  const [bankInputAmount, setBankInputAmount] = useState('5000');
-  const [bankFeedback, setBankFeedback] = useState<string | null>(null);
 
   // Market Scanner State
   const [scannedDeals, setScannedDeals] = useState<ScannedDeal[]>([
@@ -374,6 +376,8 @@ export const PhoneView: React.FC = () => {
   const selectedStock = stocks.find((s) => s.id === selectedStockId) || stocks[0];
   const userHolding = portfolio.find((h) => h.stockId === selectedStock?.id);
 
+  if (!isPhoneOpen) return null;
+
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 select-none animate-in fade-in duration-200">
       {/* iPhone Device Chassis */}
@@ -406,10 +410,10 @@ export const PhoneView: React.FC = () => {
         {/* iPhone Viewport Content */}
         <div className="flex-1 flex flex-col overflow-hidden relative bg-gradient-to-b from-slate-900 via-slate-950 to-black text-slate-100">
           {/* Active App Header Bar */}
-          {phoneActiveApp && (
+          {phoneActiveApp !== 'home' && (
             <div className="px-4 py-2 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between z-20 shrink-0">
               <button
-                onClick={() => setPhoneActiveApp(null)}
+                onClick={() => setPhoneActiveApp('home')}
                 className="flex items-center gap-1 text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -417,15 +421,19 @@ export const PhoneView: React.FC = () => {
               </button>
 
               <span className="text-xs font-bold capitalize text-slate-200">
+                {phoneActiveApp === 'jobs' && '💼 WorkForce PRO'}
+                {(phoneActiveApp === 'bank' || phoneActiveApp === 'finance') && '🏦 Vance Mobile Bank'}
                 {phoneActiveApp === 'stocks' && '📈 iStocks Exchange'}
-                {phoneActiveApp === 'bank' && '🏦 Vance Mobile Bank'}
                 {phoneActiveApp === 'scanner' && '📡 DealRadar Scanner'}
                 {phoneActiveApp === 'auctions' && '🔨 Distressed Auctions'}
+                {phoneActiveApp === 'farbes' && '🏆 Farbes 100 Richest'}
+                {phoneActiveApp === 'vip' && '👑 VIP Club & Luxury'}
               </span>
 
               <button
                 onClick={() => setIsPhoneOpen(false)}
                 className="p-1 text-slate-400 hover:text-slate-200 cursor-pointer"
+                title="Close Phone"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -433,7 +441,7 @@ export const PhoneView: React.FC = () => {
           )}
 
           {/* SCREEN 1: HOME SCREEN */}
-          {!phoneActiveApp && (
+          {phoneActiveApp === 'home' && (
             <div className="flex-1 p-4 flex flex-col justify-between overflow-y-auto no-scrollbar">
               {/* Close Button top-right */}
               <div className="flex justify-end pt-1">
@@ -449,12 +457,18 @@ export const PhoneView: React.FC = () => {
               {/* iOS Live Widgets */}
               <div className="space-y-3 pt-2">
                 {/* Financial Summary Widget */}
-                <div className="bg-gradient-to-br from-indigo-950/80 via-slate-900/90 to-slate-900/90 border border-indigo-500/30 rounded-3xl p-4 shadow-xl backdrop-blur-md">
+                <div 
+                  onClick={() => setPhoneActiveApp('bank')}
+                  className="bg-gradient-to-br from-indigo-950/80 via-slate-900/90 to-slate-900/90 border border-indigo-500/30 rounded-3xl p-4 shadow-xl backdrop-blur-md cursor-pointer hover:border-indigo-400/50 transition group"
+                >
                   <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                    <span className="font-semibold uppercase tracking-wider text-[10px] text-indigo-300">Vance Financial ID</span>
-                    <span className="text-[10px] text-emerald-400 font-bold">Online</span>
+                    <span className="font-semibold uppercase tracking-wider text-[10px] text-indigo-300">Vance Mobile Bank</span>
+                    <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      Live
+                    </span>
                   </div>
-                  <div className="text-xl font-black text-slate-100 tracking-tight">
+                  <div className="text-xl font-black text-slate-100 tracking-tight group-hover:text-emerald-300 transition">
                     {formatCurrency(player.cash)}
                   </div>
                   <div className="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
@@ -466,10 +480,10 @@ export const PhoneView: React.FC = () => {
                 {/* Market Pulse Widget */}
                 <div 
                   onClick={() => setPhoneActiveApp('scanner')}
-                  className="bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-2xl p-3 cursor-pointer transition shadow-md flex items-center justify-between"
+                  className="bg-slate-900/80 border border-slate-800 hover:border-cyan-500/40 rounded-2xl p-3 cursor-pointer transition shadow-md flex items-center justify-between group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
+                    <div className="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center group-hover:scale-105 transition">
                       <Radio className="w-5 h-5 animate-pulse" />
                     </div>
                     <div>
@@ -483,68 +497,105 @@ export const PhoneView: React.FC = () => {
                 </div>
               </div>
 
-              {/* iOS App Grid (4 Core Required Apps) */}
-              <div className="py-6">
-                <div className="grid grid-cols-4 gap-4 text-center">
-                  {/* App 1: Stocks */}
+              {/* iOS App Grid */}
+              <div className="py-4">
+                <div className="grid grid-cols-4 gap-y-4 gap-x-2 text-center">
+                  {/* App 1: Jobs / WorkForce */}
                   <button
-                    onClick={() => setPhoneActiveApp('stocks')}
+                    onClick={() => setPhoneActiveApp('jobs')}
                     className="flex flex-col items-center gap-1.5 group cursor-pointer active:scale-95 transition"
                   >
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-b from-slate-800 to-black border border-slate-700/80 shadow-lg flex items-center justify-center text-emerald-400 group-hover:border-emerald-500/60 transition">
-                      <TrendingUp className="w-7 h-7" />
+                    <div className="w-13 h-13 rounded-2xl bg-gradient-to-b from-blue-600 to-indigo-900 border border-blue-400/50 shadow-lg flex items-center justify-center text-white group-hover:scale-105 transition">
+                      <Briefcase className="w-6 h-6" />
                     </div>
-                    <span className="text-[11px] font-medium text-slate-200">Stocks</span>
+                    <span className="text-[11px] font-medium text-slate-200">Jobs</span>
                   </button>
 
-                  {/* App 2: Bank */}
+                  {/* App 2: Bank / Finance */}
                   <button
                     onClick={() => setPhoneActiveApp('bank')}
                     className="flex flex-col items-center gap-1.5 group cursor-pointer active:scale-95 transition"
                   >
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-b from-emerald-600 to-emerald-900 border border-emerald-400/50 shadow-lg flex items-center justify-center text-white group-hover:scale-105 transition">
-                      <Landmark className="w-7 h-7" />
+                    <div className="w-13 h-13 rounded-2xl bg-gradient-to-b from-emerald-600 to-emerald-900 border border-emerald-400/50 shadow-lg flex items-center justify-center text-white group-hover:scale-105 transition">
+                      <Landmark className="w-6 h-6" />
                     </div>
-                    <span className="text-[11px] font-medium text-slate-200">Bank</span>
+                    <span className="text-[11px] font-medium text-slate-200">Finance</span>
                   </button>
 
-                  {/* App 3: Market Scanner */}
+                  {/* App 3: Stocks */}
+                  <button
+                    onClick={() => setPhoneActiveApp('stocks')}
+                    className="flex flex-col items-center gap-1.5 group cursor-pointer active:scale-95 transition"
+                  >
+                    <div className="w-13 h-13 rounded-2xl bg-gradient-to-b from-slate-800 to-black border border-slate-700/80 shadow-lg flex items-center justify-center text-emerald-400 group-hover:border-emerald-500/60 transition">
+                      <TrendingUp className="w-6 h-6" />
+                    </div>
+                    <span className="text-[11px] font-medium text-slate-200">Stocks</span>
+                  </button>
+
+                  {/* App 4: Market Scanner */}
                   <button
                     onClick={() => setPhoneActiveApp('scanner')}
                     className="flex flex-col items-center gap-1.5 group cursor-pointer active:scale-95 transition"
                   >
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-b from-cyan-600 to-blue-950 border border-cyan-400/50 shadow-lg flex items-center justify-center text-white group-hover:scale-105 transition">
-                      <Radio className="w-7 h-7" />
+                    <div className="w-13 h-13 rounded-2xl bg-gradient-to-b from-cyan-600 to-blue-950 border border-cyan-400/50 shadow-lg flex items-center justify-center text-white group-hover:scale-105 transition">
+                      <Radio className="w-6 h-6" />
                     </div>
                     <span className="text-[11px] font-medium text-slate-200">Scanner</span>
                   </button>
 
-                  {/* App 4: Distressed Auctions */}
+                  {/* App 5: Distressed Auctions */}
                   <button
                     onClick={() => setPhoneActiveApp('auctions')}
                     className="flex flex-col items-center gap-1.5 group cursor-pointer active:scale-95 transition"
                   >
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-b from-amber-600 to-orange-950 border border-amber-400/50 shadow-lg flex items-center justify-center text-white group-hover:scale-105 transition">
-                      <Gavel className="w-7 h-7" />
+                    <div className="w-13 h-13 rounded-2xl bg-gradient-to-b from-amber-600 to-orange-950 border border-amber-400/50 shadow-lg flex items-center justify-center text-white group-hover:scale-105 transition">
+                      <Gavel className="w-6 h-6" />
                     </div>
                     <span className="text-[11px] font-medium text-slate-200">Auctions</span>
+                  </button>
+
+                  {/* App 6: Farbes Richest 100 */}
+                  <button
+                    onClick={() => setPhoneActiveApp('farbes')}
+                    className="flex flex-col items-center gap-1.5 group cursor-pointer active:scale-95 transition"
+                  >
+                    <div className="w-13 h-13 rounded-2xl bg-gradient-to-b from-amber-400 via-amber-600 to-slate-950 border border-amber-300/80 shadow-xl flex items-center justify-center text-slate-950 group-hover:scale-105 transition relative">
+                      <Award className="w-6 h-6 text-slate-950 stroke-[2.5]" />
+                      <span className="absolute -bottom-1 text-[8px] font-black tracking-tighter bg-black/90 text-amber-300 px-1 rounded">100</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-amber-300">Farbes</span>
+                  </button>
+
+                  {/* App 7: VIP Club & Luxury */}
+                  <button
+                    onClick={() => setPhoneActiveApp('vip')}
+                    className="flex flex-col items-center gap-1.5 group cursor-pointer active:scale-95 transition"
+                  >
+                    <div className="w-13 h-13 rounded-2xl bg-gradient-to-b from-neutral-800 via-neutral-900 to-black border border-amber-500/60 shadow-xl flex items-center justify-center text-amber-400 group-hover:scale-105 transition">
+                      <Crown className="w-6 h-6" />
+                    </div>
+                    <span className="text-[11px] font-bold text-slate-200">VIP Club</span>
                   </button>
                 </div>
               </div>
 
               {/* iOS Bottom Dock */}
-              <div className="bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-3xl p-3 mb-2 flex items-center justify-around shadow-2xl">
-                <button onClick={() => setPhoneActiveApp('stocks')} className="p-2 rounded-xl text-slate-300 hover:text-emerald-400 transition cursor-pointer">
-                  <TrendingUp className="w-6 h-6" />
+              <div className="bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-3xl p-2.5 mb-2 flex items-center justify-around shadow-2xl">
+                <button onClick={() => setPhoneActiveApp('jobs')} className="p-2 rounded-xl text-slate-300 hover:text-blue-400 transition cursor-pointer" title="Jobs">
+                  <Briefcase className="w-5 h-5" />
                 </button>
-                <button onClick={() => setPhoneActiveApp('bank')} className="p-2 rounded-xl text-slate-300 hover:text-emerald-400 transition cursor-pointer">
-                  <Landmark className="w-6 h-6" />
+                <button onClick={() => setPhoneActiveApp('bank')} className="p-2 rounded-xl text-slate-300 hover:text-emerald-400 transition cursor-pointer" title="Finance">
+                  <Landmark className="w-5 h-5" />
                 </button>
-                <button onClick={() => setPhoneActiveApp('scanner')} className="p-2 rounded-xl text-slate-300 hover:text-cyan-400 transition cursor-pointer">
-                  <Radio className="w-6 h-6" />
+                <button onClick={() => setPhoneActiveApp('stocks')} className="p-2 rounded-xl text-slate-300 hover:text-emerald-400 transition cursor-pointer" title="Stocks">
+                  <TrendingUp className="w-5 h-5" />
                 </button>
-                <button onClick={() => setPhoneActiveApp('auctions')} className="p-2 rounded-xl text-slate-300 hover:text-amber-400 transition cursor-pointer">
-                  <Gavel className="w-6 h-6" />
+                <button onClick={() => setPhoneActiveApp('scanner')} className="p-2 rounded-xl text-slate-300 hover:text-cyan-400 transition cursor-pointer" title="DealScanner">
+                  <Radio className="w-5 h-5" />
+                </button>
+                <button onClick={() => setPhoneActiveApp('farbes')} className="p-2 rounded-xl text-amber-400 hover:text-amber-300 transition cursor-pointer" title="Farbes 100">
+                  <Award className="w-5 h-5" />
                 </button>
               </div>
             </div>
@@ -688,134 +739,14 @@ export const PhoneView: React.FC = () => {
             </div>
           )}
 
-          {/* SCREEN 3: VANCE MOBILE BANK */}
-          {phoneActiveApp === 'bank' && (
-            <div className="flex-1 flex flex-col overflow-y-auto p-4 space-y-4 no-scrollbar">
-              {/* Account Switcher Tabs */}
-              <div className="flex bg-slate-900 p-1 rounded-2xl border border-slate-800 text-xs">
-                <button
-                  onClick={() => setBankTab('checking')}
-                  className={`flex-1 py-2 rounded-xl font-bold transition cursor-pointer ${
-                    bankTab === 'checking' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  Checking Account
-                </button>
-                <button
-                  onClick={() => setBankTab('savings')}
-                  className={`flex-1 py-2 rounded-xl font-bold transition cursor-pointer ${
-                    bankTab === 'savings' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  High-Yield Savings
-                </button>
-              </div>
+          {/* SCREEN: WORKFORCE PRO JOBS APP */}
+          {phoneActiveApp === 'jobs' && (
+            <JobsApp onBack={() => setPhoneActiveApp('home')} />
+          )}
 
-              {/* Virtual Debit / Savings Card Display */}
-              <div className={`rounded-3xl p-5 shadow-2xl text-white relative overflow-hidden transition-all ${
-                bankTab === 'checking'
-                  ? 'bg-gradient-to-tr from-slate-900 via-slate-800 to-emerald-950 border border-emerald-500/40'
-                  : 'bg-gradient-to-tr from-indigo-950 via-slate-900 to-purple-950 border border-indigo-500/40'
-              }`}>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-black tracking-wider uppercase text-slate-300">
-                    {bankTab === 'checking' ? 'Vance Platinum Debit' : 'Vance High-Yield 4.5% APY'}
-                  </span>
-                  <Landmark className="w-5 h-5 text-emerald-400" />
-                </div>
-
-                <div className="space-y-1 mb-4">
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Available Balance</span>
-                  <div className="text-2xl font-black tracking-tight text-white">
-                    {formatCurrency(
-                      bankAccounts.find((a) => a.id === bankTab)?.balance || 0
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-white/10">
-                  <span className="font-mono">•••• •••• •••• 8821</span>
-                  <span className="text-emerald-300 font-bold">FDIC Insured</span>
-                </div>
-              </div>
-
-              {bankFeedback && (
-                <div className="text-xs bg-indigo-950/80 border border-indigo-500/50 text-indigo-300 p-2.5 rounded-xl text-center font-semibold animate-in fade-in">
-                  {bankFeedback}
-                </div>
-              )}
-
-              {/* Fast Transfer & Deposit Operations */}
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-200">Move Money</span>
-                  <span className="text-[11px] text-slate-400">Cash: <strong className="text-emerald-400">{formatCurrency(player.cash)}</strong></span>
-                </div>
-
-                <div className="grid grid-cols-4 gap-1.5">
-                  {[1000, 5000, 25000, 100000].map((amt) => (
-                    <button
-                      key={amt}
-                      onClick={() => setBankInputAmount(amt.toString())}
-                      className="py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 cursor-pointer"
-                    >
-                      +${amt >= 1000 ? `${amt / 1000}k` : amt}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    value={bankInputAmount}
-                    onChange={(e) => setBankInputAmount(e.target.value)}
-                    placeholder="Enter amount"
-                    className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 text-sm font-bold focus:outline-none focus:border-indigo-500"
-                  />
-                  <button
-                    onClick={() => {
-                      const curBalance = bankAccounts.find((a) => a.id === bankTab)?.balance || 0;
-                      setBankInputAmount(curBalance.toString());
-                    }}
-                    className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-indigo-300 text-xs font-bold rounded-xl border border-slate-700 cursor-pointer"
-                  >
-                    MAX
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <button
-                    onClick={() => {
-                      const amount = parseInt(bankInputAmount, 10);
-                      if (isNaN(amount) || amount <= 0) return;
-                      if (depositBank(bankTab, amount)) {
-                        setBankFeedback(`Successfully deposited ${formatCurrency(amount)} into ${bankTab}!`);
-                        setTimeout(() => setBankFeedback(null), 2500);
-                      }
-                    }}
-                    className="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1 shadow-md cursor-pointer transition active:scale-95"
-                  >
-                    <ArrowDownLeft className="w-4 h-4" />
-                    <span>Deposit Funds</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      const amount = parseInt(bankInputAmount, 10);
-                      if (isNaN(amount) || amount <= 0) return;
-                      if (withdrawBank(bankTab, amount)) {
-                        setBankFeedback(`Successfully withdrew ${formatCurrency(amount)} to cash!`);
-                        setTimeout(() => setBankFeedback(null), 2500);
-                      }
-                    }}
-                    className="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold rounded-xl flex items-center justify-center gap-1 cursor-pointer transition active:scale-95"
-                  >
-                    <ArrowUpRight className="w-4 h-4 text-amber-400" />
-                    <span>Withdraw Cash</span>
-                  </button>
-                </div>
-              </div>
-            </div>
+          {/* SCREEN: VANCE MOBILE BANK & FULL FINANCE APP */}
+          {(phoneActiveApp === 'bank' || phoneActiveApp === 'finance') && (
+            <FinanceApp onBack={() => setPhoneActiveApp('home')} />
           )}
 
           {/* SCREEN 4: DEALRADAR SCANNER */}
@@ -1032,14 +963,24 @@ export const PhoneView: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* SCREEN 5: FARBES RICHEST 100 APP */}
+          {phoneActiveApp === 'farbes' && (
+            <FarbesApp onBack={() => setPhoneActiveApp('home')} />
+          )}
+
+          {/* SCREEN 6: VIP CLUB & LUXURY & PASSES APP */}
+          {phoneActiveApp === 'vip' && (
+            <VipClubApp onBack={() => setPhoneActiveApp('home')} />
+          )}
         </div>
 
         {/* iOS Bottom Home Bar Indicator */}
         <div className="h-6 flex items-center justify-center z-40 bg-black shrink-0">
           <button
             onClick={() => {
-              if (phoneActiveApp) {
-                setPhoneActiveApp(null);
+              if (phoneActiveApp !== 'home') {
+                setPhoneActiveApp('home');
               } else {
                 setIsPhoneOpen(false);
               }

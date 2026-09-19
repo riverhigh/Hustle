@@ -26,7 +26,8 @@ import {
   Wallet,
   Landmark,
   Calendar,
-  X
+  X,
+  Smartphone
 } from 'lucide-react';
 
 export const HustleView: React.FC = () => {
@@ -46,10 +47,11 @@ export const HustleView: React.FC = () => {
     fireEmployee, 
     boostBusinessMarketing, 
     upgradeBusinessOffice, 
-    adjustBusinessPricing 
+    adjustBusinessPricing,
+    openPhoneApp
   } = useGame();
 
-  const [activeSection, setActiveSection] = useState<'gigs' | 'education' | 'businesses'>('gigs');
+  const [activeSection, setActiveSection] = useState<'businesses' | 'education' | 'gigs'>('businesses');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [payTypeFilter, setPayTypeFilter] = useState<'all' | 'instant' | 'weekly'>('all');
   const [showNewBizModal, setShowNewBizModal] = useState<boolean>(false);
@@ -88,18 +90,42 @@ export const HustleView: React.FC = () => {
 
   return (
     <div className="space-y-4 pb-20 pt-1">
-      {/* Section Switcher (Gigs vs Education vs Micro-Businesses) */}
+      {/* WorkForce PRO Phone App Banner */}
+      <div className="bg-gradient-to-r from-blue-950/70 via-slate-900 to-indigo-950/60 border border-blue-700/40 rounded-2xl p-3 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
+            <Briefcase className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-100">WorkForce PRO Job Hub</span>
+              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-blue-900/80 text-blue-300 border border-blue-600">IN PHONE</span>
+            </div>
+            <p className="text-[11px] text-slate-400">Salaried executive careers, gigs, and shifts are now available on your smartphone!</p>
+          </div>
+        </div>
+        <button
+          onClick={() => openPhoneApp('jobs')}
+          className="w-full sm:w-auto px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition active:scale-95 shrink-0"
+        >
+          <Smartphone className="w-3.5 h-3.5" />
+          <span>Open Jobs App</span>
+        </button>
+      </div>
+
+      {/* Section Switcher (Enterprises vs Education vs Gigs) */}
       <div className="flex bg-slate-900/90 p-1 rounded-2xl border border-slate-800">
         <button
-          onClick={() => setActiveSection('gigs')}
+          onClick={() => setActiveSection('businesses')}
           className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-            activeSection === 'gigs'
-              ? 'bg-emerald-600 text-white shadow-md'
+            activeSection === 'businesses'
+              ? 'bg-indigo-600 text-white shadow-md'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <Briefcase className="w-4 h-4" />
-          <span>Hustle & Gigs</span>
+          <Building2 className="w-4 h-4" />
+          <span>Businesses {ownedBusinesses.length > 0 && `(${ownedBusinesses.length})`}</span>
+          {!isMicrobusinessUnlocked && <Lock className="w-3 h-3 text-slate-500" />}
         </button>
 
         <button
@@ -115,16 +141,15 @@ export const HustleView: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveSection('businesses')}
+          onClick={() => setActiveSection('gigs')}
           className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-            activeSection === 'businesses'
-              ? 'bg-indigo-600 text-white shadow-md'
+            activeSection === 'gigs'
+              ? 'bg-emerald-600 text-white shadow-md'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <Building2 className="w-4 h-4" />
-          <span>Businesses {ownedBusinesses.length > 0 && `(${ownedBusinesses.length})`}</span>
-          {!isMicrobusinessUnlocked && <Lock className="w-3 h-3 text-slate-500" />}
+          <Briefcase className="w-4 h-4" />
+          <span>All Gigs ({availableJobs.length})</span>
         </button>
       </div>
 

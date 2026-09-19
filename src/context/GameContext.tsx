@@ -21,7 +21,9 @@ import {
   Tenant,
   SaveSlotMeta,
   EducationCourse,
+  TaxYearRecord,
 } from '../types/game';
+import { LUXURY_ITEMS } from '../constants/luxuryItems';
 import {
   INITIAL_PLAYER,
   HOUSING_TIERS,
@@ -129,6 +131,16 @@ interface GameContextType {
   closeAuction: () => void;
   unlockAutoCollectManager: () => boolean;
 
+  // Subscriptions, VIP Club, Luxury & Taxes
+  subscribePropertyManagerPass: (method: 'gems' | 'cash') => boolean;
+  unlockVipClubAccess: (method: 'gems' | 'cash') => boolean;
+  buyLuxuryItem: (itemId: string) => boolean;
+  buyPropertyWithGems: (propertyId: string) => boolean;
+  payYearlyTaxBill: () => boolean;
+  taxRecords: TaxYearRecord[];
+  currentYearGrossIncome: number;
+  estimatedYearlyTaxOwed: number;
+
   // Businesses
   startBusiness: (typeId: string, name: string) => boolean;
   depositToBusiness: (businessId: string, amount: number) => boolean;
@@ -146,9 +158,9 @@ interface GameContextType {
   // In-App iPhone
   isPhoneOpen: boolean;
   setIsPhoneOpen: (open: boolean) => void;
-  phoneActiveApp: 'home' | 'stocks' | 'bank' | 'scanner' | 'auctions';
-  setPhoneActiveApp: (app: 'home' | 'stocks' | 'bank' | 'scanner' | 'auctions') => void;
-  openPhoneApp: (app: 'home' | 'stocks' | 'bank' | 'scanner' | 'auctions') => void;
+  phoneActiveApp: 'home' | 'stocks' | 'bank' | 'scanner' | 'auctions' | 'farbes' | 'vip' | 'jobs' | 'finance';
+  setPhoneActiveApp: (app: 'home' | 'stocks' | 'bank' | 'scanner' | 'auctions' | 'farbes' | 'vip' | 'jobs' | 'finance') => void;
+  openPhoneApp: (app: 'home' | 'stocks' | 'bank' | 'scanner' | 'auctions' | 'farbes' | 'vip' | 'jobs' | 'finance') => void;
 
   // Events & Missions & System
   chooseEventOption: (choiceId: string) => void;
@@ -398,12 +410,21 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   });
   const [isStoreModalOpen, setIsStoreModalOpen] = useState<boolean>(false);
   const [isPhoneOpen, setIsPhoneOpen] = useState<boolean>(false);
-  const [phoneActiveApp, setPhoneActiveApp] = useState<'home' | 'stocks' | 'bank' | 'scanner' | 'auctions'>('home');
+  const [phoneActiveApp, setPhoneActiveApp] = useState<'home' | 'stocks' | 'bank' | 'scanner' | 'auctions' | 'farbes' | 'vip' | 'jobs' | 'finance'>('home');
 
-  const openPhoneApp = useCallback((app: 'home' | 'stocks' | 'bank' | 'scanner' | 'auctions') => {
+  const openPhoneApp = useCallback((app: 'home' | 'stocks' | 'bank' | 'scanner' | 'auctions' | 'farbes' | 'vip' | 'jobs' | 'finance') => {
     setPhoneActiveApp(app);
     setIsPhoneOpen(true);
   }, []);
+
+  const [taxRecords, setTaxRecords] = useState<TaxYearRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_taxes');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // Pop up banner disabled per user request
   const triggerFeedback = useCallback((_text: string, _type: 'success' | 'warning' | 'info' | 'error' = 'success', _details?: string[]) => {
@@ -423,11 +444,17 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const totalPropertyValue = ownedProperties.reduce((sum, p) => sum + p.currentValue, 0);
   const totalBusinessValue = ownedBusinesses.reduce((sum, b) => sum + (b.revenueMonthly * 12 + b.equipmentValue + (b.treasury || 0)), 0);
 
+  // Total Luxury Asset Value (Supercars, Supersonic Jets, Mega Yachts)
+  const totalLuxuryValue = (player.ownedLuxuryItems || []).reduce((sum, id) => {
+    const item = LUXURY_ITEMS.find((l) => l.id === id);
+    return sum + (item ? item.cashEquivalent : 0);
+  }, 0);
+
   const totalCreditDebt = creditCards.reduce((sum, c) => sum + c.balance, 0);
   const totalLoanDebt = loans.reduce((sum, l) => sum + l.remainingBalance, 0);
   const totalDebt = totalCreditDebt + totalLoanDebt;
 
-  const netWorth = player.cash + totalBankBalance + totalStockValue + totalPropertyValue + totalBusinessValue - totalDebt;
+  const netWorth = player.cash + totalBankBalance + totalStockValue + totalPropertyValue + totalBusinessValue + totalLuxuryValue - totalDebt;
 
   // Monthly income & expenses estimation
   const monthlyRentalIncome = ownedProperties.reduce((sum, p) => sum + (p.tenant ? p.tenant.agreedRent : 0), 0);
@@ -439,8 +466,14 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const housingCost = HOUSING_TIERS.find((h) => h.tier === player.housingTier)?.costMonthly || 0;
   const transportCost = (TRANSPORTATION_TIERS.find((t) => t.tier === player.transportationTier)?.dailyCost || 0) * 30;
   const debtPayments = loans.reduce((sum, l) => sum + l.monthlyPayment, 0) + creditCards.reduce((sum, c) => sum + c.minPayment, 0);
-  const propertyExpenses = ownedProperties.reduce((sum, p) => sum + p.monthlyExpenses, 0);
+  // Property Manager Pass grants 75% maintenance cost reduction
+  const maintenanceMultiplier = player.hasPropertyManagerPass ? 0.25 : 1.0;
+  const propertyExpenses = Math.round(ownedProperties.reduce((sum, p) => sum + p.monthlyExpenses, 0) * maintenanceMultiplier);
   const monthlyExpenses = housingCost + transportCost + debtPayments + propertyExpenses;
+
+  // Tax Tracking Metrics
+  const currentYearGrossIncome = player.annualIncomeEarned || 0;
+  const estimatedYearlyTaxOwed = player.hasPropertyManagerPass ? 0 : Math.round(currentYearGrossIncome * 0.30);
 
   // Synchronize active slot state with LocalStorage and update slot metadata
   useEffect(() => {
@@ -595,14 +628,89 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Daily tick & Market cycle logic
   const triggerNewDayCycle = useCallback(() => {
-    // 1. Advance day
-    setPlayer((prev) => ({
-      ...prev,
-      daysPlayed: prev.daysPlayed + 1,
-      dayOfWeek: (prev.dayOfWeek + 1) % 7,
-      currentHour: 7,
-      currentMinute: 0,
-    }));
+    // 1. Advance day & process Property Manager Pass & Yearly 30% Taxes
+    setPlayer((prev) => {
+      const nextDay = prev.daysPlayed + 1;
+      const newPassDays = prev.propertyManagerPassDaysRemaining ? prev.propertyManagerPassDaysRemaining - 1 : 0;
+      const hasPass = Boolean(prev.hasPropertyManagerPass && newPassDays > 0);
+      let newCash = prev.cash;
+      let newAnnualIncome = prev.annualIncomeEarned || 0;
+      let newAccumulatedTax = prev.accumulatedTaxOwed || 0;
+      let newLastTaxYearPaid = prev.lastTaxYearPaid || 0;
+
+      // Daily manager stipend if pass is active: +$2,500
+      if (hasPass) {
+        newCash += 2500;
+        newAnnualIncome += 2500;
+      }
+
+      // Check yearly tax cycle: every 360 days (Day 360, Day 720, etc.)
+      const isYearEnd = nextDay > 0 && nextDay % 360 === 0;
+      if (isYearEnd) {
+        const currentYear = Math.floor(nextDay / 360);
+        const taxRate = 0.30;
+        const taxAmount = Math.round(newAnnualIncome * taxRate);
+
+        if (hasPass) {
+          // 100% Tax Exemption with Property Manager Pass!
+          setTaxRecords((oldRecords) => [
+            {
+              year: currentYear,
+              grossIncome: newAnnualIncome,
+              taxRate,
+              taxAmountOwed: taxAmount,
+              taxPaid: 0,
+              isExempted: true,
+              exemptionReason: 'Property Manager Pass Active',
+              filedOnDay: nextDay,
+            },
+            ...oldRecords,
+          ]);
+        } else {
+          // Standard 30% IRS income tax
+          let paidNow = 0;
+          let unpaid = 0;
+          if (newCash >= taxAmount) {
+            newCash -= taxAmount;
+            paidNow = taxAmount;
+          } else {
+            paidNow = Math.max(0, newCash);
+            unpaid = taxAmount - paidNow;
+            newCash = 0;
+            newAccumulatedTax += unpaid;
+          }
+
+          setTaxRecords((oldRecords) => [
+            {
+              year: currentYear,
+              grossIncome: newAnnualIncome,
+              taxRate,
+              taxAmountOwed: taxAmount,
+              taxPaid: paidNow,
+              isExempted: false,
+              filedOnDay: nextDay,
+            },
+            ...oldRecords,
+          ]);
+        }
+        newAnnualIncome = 0; // reset gross income for the new fiscal year
+        newLastTaxYearPaid = currentYear;
+      }
+
+      return {
+        ...prev,
+        daysPlayed: nextDay,
+        dayOfWeek: (prev.dayOfWeek + 1) % 7,
+        currentHour: 7,
+        currentMinute: 0,
+        cash: newCash,
+        annualIncomeEarned: newAnnualIncome,
+        accumulatedTaxOwed: newAccumulatedTax,
+        lastTaxYearPaid: newLastTaxYearPaid,
+        hasPropertyManagerPass: hasPass,
+        propertyManagerPassDaysRemaining: newPassDays,
+      };
+    });
 
     // 2. Fluctuating stock market prices
     setStocks((prevStocks) =>
@@ -660,6 +768,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return {
           ...prevPlayer,
           cash: prevPlayer.cash + salary,
+          annualIncomeEarned: (prevPlayer.annualIncomeEarned || 0) + salary,
           energy: newEnergy,
           weeklyJobDaysRemaining: 7,
         };
@@ -678,7 +787,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (!p.tenant) return p;
         // Tenant pays daily micro-rent or chance to pay
         const dailyRent = Math.round(p.tenant.agreedRent / 30);
-        if (autoCollectRentUnlocked) {
+        if (autoCollectRentUnlocked || player.hasPropertyManagerPass) {
           autoCollectedRent += dailyRent;
           return p;
         } else {
@@ -691,7 +800,11 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     );
 
     if (autoCollectedRent > 0) {
-      setPlayer((pState) => ({ ...pState, cash: pState.cash + autoCollectedRent }));
+      setPlayer((pState) => ({
+        ...pState,
+        cash: pState.cash + autoCollectedRent,
+        annualIncomeEarned: (pState.annualIncomeEarned || 0) + autoCollectedRent,
+      }));
     }
 
     // 5. Generate a fresh news item periodically
@@ -921,6 +1034,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setPlayer((prev) => ({
       ...prev,
       cash: prev.cash + totalPayout,
+      annualIncomeEarned: (prev.annualIncomeEarned || 0) + totalPayout,
       energy: Math.max(0, prev.energy - job.energyCost),
     }));
 
@@ -1813,6 +1927,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setPlayer((prev) => ({
       ...prev,
       cash: prev.cash + totalCollected,
+      annualIncomeEarned: (prev.annualIncomeEarned || 0) + totalCollected,
     }));
 
     triggerFeedback(`Collected $${totalCollected.toLocaleString()} in Rental Income!`, 'success');
@@ -1906,6 +2021,174 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return true;
   };
 
+  // Subscriptions & Passes
+  const subscribePropertyManagerPass = (method: 'gems' | 'cash'): boolean => {
+    if (method === 'gems') {
+      if ((player.gems || 0) < 25) {
+        triggerFeedback('Need 25 Gems to activate Property Manager Pass!', 'warning');
+        return false;
+      }
+      setPlayer((prev) => ({
+        ...prev,
+        gems: prev.gems - 25,
+        hasPropertyManagerPass: true,
+        propertyManagerPassDaysRemaining: (prev.propertyManagerPassDaysRemaining || 0) + 30,
+      }));
+    } else {
+      const cost = 999;
+      if (player.cash < cost) {
+        triggerFeedback('Need $999 cash to activate Property Manager Pass!', 'warning');
+        return false;
+      }
+      setPlayer((prev) => ({
+        ...prev,
+        cash: prev.cash - cost,
+        hasPropertyManagerPass: true,
+        propertyManagerPassDaysRemaining: (prev.propertyManagerPassDaysRemaining || 0) + 30,
+      }));
+    }
+    setAutoCollectRentUnlocked(true);
+    addPlayerXP(120);
+    triggerFeedback('🏢 Property Manager Pass Activated!', 'success', [
+      '30-Day Recurring Pass Active',
+      'Automated Rent Collection Active',
+      '+$2,500 Daily Manager Cash Bonus',
+      '100% Tax Exemption from 30% IRS Income Tax',
+      '75% Reduced Maintenance Costs',
+    ]);
+    return true;
+  };
+
+  const unlockVipClubAccess = (method: 'gems' | 'cash'): boolean => {
+    if (method === 'gems') {
+      if ((player.gems || 0) < 40) {
+        triggerFeedback('Need 40 Gems for VIP Club Access!', 'warning');
+        return false;
+      }
+      setPlayer((prev) => ({
+        ...prev,
+        gems: prev.gems - 40,
+        hasVipClubAccess: true,
+        reputation: Math.min(100, prev.reputation + 25),
+      }));
+    } else {
+      const cost = 25000;
+      if (player.cash < cost) {
+        triggerFeedback('Need $25,000 cash for VIP Club Access!', 'warning');
+        return false;
+      }
+      setPlayer((prev) => ({
+        ...prev,
+        cash: prev.cash - cost,
+        hasVipClubAccess: true,
+        reputation: Math.min(100, prev.reputation + 25),
+      }));
+    }
+    addPlayerXP(250);
+    triggerFeedback('👑 VIP Club Access Unlocked!', 'success', [
+      'Exclusive High-Yield Investment Zones Unlocked',
+      'Private Distressed Property Auctions in Phone',
+      'Hypercars, Supersonic Jets & Mega Yachts Catalog Available',
+    ]);
+    return true;
+  };
+
+  const buyLuxuryItem = (itemId: string): boolean => {
+    const item = LUXURY_ITEMS.find((i) => i.id === itemId);
+    if (!item) return false;
+
+    if (player.ownedLuxuryItems?.includes(itemId)) {
+      triggerFeedback(`You already own the ${item.name}!`, 'info');
+      return false;
+    }
+
+    if ((player.gems || 0) < item.gemPrice) {
+      triggerFeedback(`Need ${item.gemPrice} 💎 for ${item.name}! (You have ${player.gems || 0} 💎)`, 'warning');
+      return false;
+    }
+
+    setPlayer((prev) => ({
+      ...prev,
+      gems: prev.gems - item.gemPrice,
+      reputation: Math.min(100, prev.reputation + item.reputationBonus),
+      ownedLuxuryItems: [...(prev.ownedLuxuryItems || []), itemId],
+    }));
+
+    addPlayerXP(500);
+    triggerFeedback(`🍾 Acquired ${item.name}!`, 'success', [
+      `Gems Spent: -${item.gemPrice} 💎`,
+      `Asset Value: +$${item.cashEquivalent.toLocaleString()} added to Net Worth!`,
+      `+${item.reputationBonus} Global Reputation`,
+      `Ranked higher on the Farbes Richest List!`,
+    ]);
+    return true;
+  };
+
+  const buyPropertyWithGems = (propertyId: string): boolean => {
+    const prop = marketProperties.find((p) => p.id === propertyId);
+    if (!prop || !prop.gemPrice) {
+      triggerFeedback('Property not eligible for gem purchase!', 'warning');
+      return false;
+    }
+
+    if ((player.gems || 0) < prop.gemPrice) {
+      triggerFeedback(`Need ${prop.gemPrice} 💎 for this VIP Property! (You have ${player.gems || 0} 💎)`, 'warning');
+      return false;
+    }
+
+    setPlayer((prev) => ({
+      ...prev,
+      gems: prev.gems - prop.gemPrice!,
+      reputation: Math.min(100, prev.reputation + 25),
+    }));
+
+    const ownedProp: Property = {
+      ...prop,
+      isOwned: true,
+      purchasePrice: prop.askingPrice,
+      collectedRentUnclaimed: 0,
+    };
+
+    setOwnedProperties((prev) => [...prev, ownedProp]);
+    setMarketProperties((prev) => prev.filter((p) => p.id !== propertyId));
+
+    addPlayerXP(400);
+    triggerFeedback(`👑 VIP Asset Acquired: ${prop.address}!`, 'success', [
+      `Paid ${prop.gemPrice} Gems (100% Equity Owned)`,
+      `Monthly Rent Potential: $${prop.estimatedRent.toLocaleString()}`,
+      `Asset Value: $${prop.currentValue.toLocaleString()}`,
+    ]);
+    return true;
+  };
+
+  const payYearlyTaxBill = (): boolean => {
+    const owed = player.accumulatedTaxOwed || 0;
+    if (owed <= 0) {
+      triggerFeedback('No pending tax liens owed at this time!', 'info');
+      return false;
+    }
+
+    if (player.cash < owed) {
+      triggerFeedback(`Insufficient cash to clear tax bill! Need $${owed.toLocaleString()}`, 'warning');
+      return false;
+    }
+
+    setPlayer((prev) => ({
+      ...prev,
+      cash: prev.cash - owed,
+      accumulatedTaxOwed: 0,
+      creditScore: Math.min(850, prev.creditScore + 15),
+    }));
+
+    addPlayerXP(150);
+    triggerFeedback('🏛️ IRS Tax Balance Settled!', 'success', [
+      `Paid -$${owed.toLocaleString()}`,
+      'Tax lien discharged',
+      '+15 Credit Score bonus!',
+    ]);
+    return true;
+  };
+
   // Business operations
   const startBusiness = (typeId: string, name: string): boolean => {
     const template = BUSINESS_TEMPLATES.find((t) => t.id === typeId) || BUSINESS_TEMPLATES[0];
@@ -1980,7 +2263,11 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setOwnedBusinesses((prev) =>
       prev.map((b) => (b.id === businessId ? { ...b, treasury: (b.treasury || 0) - amount } : b))
     );
-    setPlayer((prev) => ({ ...prev, cash: prev.cash + amount }));
+    setPlayer((prev) => ({
+      ...prev,
+      cash: prev.cash + amount,
+      annualIncomeEarned: (prev.annualIncomeEarned || 0) + amount,
+    }));
 
     triggerFeedback(`Withdrew $${amount.toLocaleString()} from ${biz.name} to personal cash!`, 'success');
     return true;
@@ -2656,6 +2943,15 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         bidInAuction,
         closeAuction,
         unlockAutoCollectManager,
+
+        subscribePropertyManagerPass,
+        unlockVipClubAccess,
+        buyLuxuryItem,
+        buyPropertyWithGems,
+        payYearlyTaxBill,
+        taxRecords,
+        currentYearGrossIncome,
+        estimatedYearlyTaxOwed,
 
         startBusiness,
         depositToBusiness,

@@ -19,7 +19,9 @@ import {
   AlertTriangle,
   Bookmark,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Radio,
+  Smartphone
 } from 'lucide-react';
 
 export const PropertiesView: React.FC = () => {
@@ -33,23 +35,17 @@ export const PropertiesView: React.FC = () => {
     evictTenant,
     collectRent,
     toggleWatchlistProperty,
-    activeAuction,
-    startAuction,
-    bidInAuction,
-    closeAuction,
     autoCollectRentUnlocked,
     unlockAutoCollectManager,
+    openPhoneApp,
   } = useGame();
 
-  const [activeTab, setActiveTab] = useState<'scanner' | 'portfolio' | 'auctions'>('portfolio');
-  const [scannerIndex, setScannerIndex] = useState<number>(0);
+  const [activeTab, setActiveTab] = useState<'portfolio' | 'mls'>('portfolio');
   const [selectedPropertyToAnalyze, setSelectedPropertyToAnalyze] = useState<Property | null>(null);
   const [negotiationOffer, setNegotiationOffer] = useState<number>(85000);
   const [downPaymentPercent, setDownPaymentPercent] = useState<number>(20);
   const [inspectingProperty, setInspectingProperty] = useState<Property | null>(null);
   const [leasingProperty, setLeasingProperty] = useState<Property | null>(null);
-
-  const currentScannedProperty = marketProperties[scannerIndex % Math.max(1, marketProperties.length)];
 
   // Portfolio total stats
   const totalPortfolioValue = ownedProperties.reduce((sum, p) => sum + p.currentValue, 0);
@@ -88,24 +84,46 @@ export const PropertiesView: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('scanner')}
+          onClick={() => setActiveTab('mls')}
           className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-            activeTab === 'scanner' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
+            activeTab === 'mls' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <Search className="w-4 h-4" />
-          <span>Market Scanner</span>
+          <span>MLS Market Listings ({marketProperties.length})</span>
         </button>
+      </div>
 
-        <button
-          onClick={() => setActiveTab('auctions')}
-          className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-            activeTab === 'auctions' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Gavel className="w-4 h-4" />
-          <span>Distressed Auctions</span>
-        </button>
+      {/* Phone Exclusives Banner */}
+      <div className="bg-gradient-to-r from-cyan-950/70 via-slate-900 to-amber-950/50 border border-cyan-700/40 rounded-2xl p-3 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
+            <Smartphone className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-100">DealRadar Scanner & Foreclosure Auctions</span>
+              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-cyan-900/80 text-cyan-300 border border-cyan-600">PHONE APP ONLY</span>
+            </div>
+            <p className="text-[11px] text-slate-400">Off-market arbitrage and fast-paced foreclosure auctions are now exclusive to your mobile phone apps!</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+          <button
+            onClick={() => openPhoneApp('scanner')}
+            className="flex-1 sm:flex-initial px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition active:scale-95"
+          >
+            <Radio className="w-3.5 h-3.5" />
+            <span>Open Scanner</span>
+          </button>
+          <button
+            onClick={() => openPhoneApp('auctions')}
+            className="flex-1 sm:flex-initial px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-slate-950 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition active:scale-95"
+          >
+            <Gavel className="w-3.5 h-3.5" />
+            <span>Open Auctions</span>
+          </button>
+        </div>
       </div>
 
       {/* PORTFOLIO TAB */}
@@ -183,10 +201,10 @@ export const PropertiesView: React.FC = () => {
                 You don't own any properties yet. Head to the <strong className="text-indigo-300">Market Scanner</strong> to inspect your first fixer-upper or turn-key rental!
               </p>
               <button
-                onClick={() => setActiveTab('scanner')}
+                onClick={() => setActiveTab('mls')}
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl cursor-pointer"
               >
-                Scan Properties
+                Browse MLS Listings
               </button>
             </div>
           ) : (
@@ -283,190 +301,95 @@ export const PropertiesView: React.FC = () => {
         </div>
       )}
 
-      {/* SCANNER TAB (TINDER-STYLE CARDS) */}
-      {activeTab === 'scanner' && (
+      {/* MLS MARKET LISTINGS TAB */}
+      {activeTab === 'mls' && (
         <div className="space-y-4">
-          {marketProperties.length === 0 ? (
-            <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-8 text-center space-y-3">
-              <Search className="w-10 h-10 text-slate-600 mx-auto" />
-              <p className="text-xs text-slate-400">All available deals in the market have been reviewed!</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-slate-100">MLS Public Real Estate Board</h3>
+              <p className="text-xs text-slate-400">Standard residential & commercial properties available for purchase</p>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {/* Card deck */}
-              <div className="bg-slate-900/90 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl space-y-3">
-                <div className="relative h-48 sm:h-56 w-full">
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+              {marketProperties.length} listings
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {marketProperties.map((prop) => (
+              <div
+                key={prop.id}
+                className="bg-slate-900/90 border border-slate-800 hover:border-slate-700 rounded-3xl overflow-hidden shadow-xl flex flex-col transition"
+              >
+                <div className="relative h-44 w-full">
                   <img
-                    src={currentScannedProperty.image}
-                    alt={currentScannedProperty.address}
+                    src={prop.image}
+                    alt={prop.address}
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-black/40" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-black/30" />
 
-                  {/* Top tags */}
-                  <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                    <span className="px-2.5 py-1 bg-slate-900/80 backdrop-blur-md rounded-lg text-xs font-bold text-indigo-300 border border-slate-700/60">
-                      {currentScannedProperty.neighborhood}
+                  <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+                    <span className="px-2 py-0.5 bg-slate-900/80 backdrop-blur-md rounded-lg text-[10px] font-bold text-indigo-300 border border-slate-700/60">
+                      {prop.neighborhood}
                     </span>
-                    <span className="px-2.5 py-1 bg-slate-900/80 backdrop-blur-md rounded-lg text-xs font-bold text-slate-300 border border-slate-700/60">
-                      {currentScannedProperty.daysOnMarket} days listed
+                    <span className="px-2 py-0.5 bg-slate-900/80 backdrop-blur-md rounded-lg text-[10px] font-semibold text-slate-300 border border-slate-700/60">
+                      {prop.daysOnMarket}d on MLS
                     </span>
                   </div>
 
                   <button
-                    onClick={() => toggleWatchlistProperty(currentScannedProperty.id)}
-                    className="absolute top-3 right-3 p-2 bg-slate-900/80 backdrop-blur-md rounded-xl text-slate-300 hover:text-amber-400 border border-slate-700/60 cursor-pointer"
+                    onClick={() => toggleWatchlistProperty(prop.id)}
+                    className="absolute top-2.5 right-2.5 p-1.5 bg-slate-900/80 backdrop-blur-md rounded-xl text-slate-300 hover:text-amber-400 border border-slate-700/60 cursor-pointer"
                     title="Bookmark"
                   >
-                    <Bookmark className={`w-4 h-4 ${currentScannedProperty.isWatchlist ? 'fill-amber-400 text-amber-400' : ''}`} />
+                    <Bookmark className={`w-4 h-4 ${prop.isWatchlist ? 'fill-amber-400 text-amber-400' : ''}`} />
                   </button>
 
-                  {/* Bottom title & price overlay */}
-                  <div className="absolute bottom-3 left-3 right-3 flex items-baseline justify-between">
+                  <div className="absolute bottom-2.5 left-3 right-3 flex items-end justify-between">
                     <div>
-                      <h3 className="text-base sm:text-lg font-bold text-white drop-shadow">
-                        {currentScannedProperty.address}
-                      </h3>
-                      <span className="text-xs text-slate-300">
-                        Est. Rent: <strong className="text-emerald-400">{formatCurrency(currentScannedProperty.estimatedRent)}/mo</strong>
+                      <h4 className="text-sm font-bold text-white drop-shadow truncate">{prop.address}</h4>
+                      <span className="text-[11px] text-emerald-300">
+                        Est. Rent: <strong>{formatCurrency(prop.estimatedRent)}/mo</strong>
                       </span>
                     </div>
                     <div className="text-right">
-                      <span className="text-lg sm:text-xl font-black text-emerald-400 drop-shadow">
-                        {formatCurrency(currentScannedProperty.askingPrice)}
+                      <span className="text-base font-black text-emerald-400 drop-shadow">
+                        {formatCurrency(prop.askingPrice)}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Details breakdown */}
-                <div className="p-4 pt-1 space-y-3">
-                  <div className="grid grid-cols-3 gap-2 bg-slate-800/50 p-2.5 rounded-2xl border border-slate-800 text-center">
+                <div className="p-3.5 space-y-3 flex-1 flex flex-col justify-between">
+                  <div className="grid grid-cols-3 gap-1.5 bg-slate-800/50 p-2 rounded-xl border border-slate-800 text-center text-xs">
                     <div>
-                      <span className="text-[10px] text-slate-400">CONDITION</span>
-                      <div className="text-xs font-bold text-slate-100">
-                        {currentScannedProperty.overallCondition}%
-                      </div>
+                      <span className="text-[9px] text-slate-400 block uppercase">Condition</span>
+                      <span className="font-bold text-slate-200">{prop.overallCondition}%</span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400">EXPENSES</span>
-                      <div className="text-xs font-bold text-rose-400">
-                        {formatCurrency(currentScannedProperty.monthlyExpenses)}/mo
-                      </div>
+                      <span className="text-[9px] text-slate-400 block uppercase">Expenses</span>
+                      <span className="font-bold text-rose-400">{formatCurrency(prop.monthlyExpenses)}/mo</span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400">EST. EQUITY UPSIDE</span>
-                      <div className="text-xs font-bold text-indigo-400">
-                        +$25,000+
-                      </div>
+                      <span className="text-[9px] text-slate-400 block uppercase">Appreciation</span>
+                      <span className="font-bold text-indigo-400">+4.5%/yr</span>
                     </div>
                   </div>
 
-                  {/* Swipe Control Buttons */}
-                  <div className="flex items-center justify-between gap-3 pt-2">
-                    <button
-                      onClick={() => setScannerIndex((prev) => prev + 1)}
-                      className="flex-1 py-3 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 text-slate-300 font-bold text-xs rounded-2xl flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-95"
-                    >
-                      <X className="w-4 h-4 text-rose-400" />
-                      <span>Pass (Swipe Left)</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setSelectedPropertyToAnalyze(currentScannedProperty);
-                        setNegotiationOffer(currentScannedProperty.askingPrice);
-                      }}
-                      className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-indigo-950/40 flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-95"
-                    >
-                      <Check className="w-4 h-4 text-emerald-400" />
-                      <span>Analyze & Offer</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* AUCTIONS TAB */}
-      {activeTab === 'auctions' && (
-        <div className="space-y-4">
-          <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 shadow-xl space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-amber-500/20 text-amber-400 rounded-xl">
-                <Gavel className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-100">Live Distressed Foreclosure Auctions</h3>
-                <p className="text-xs text-slate-400">Compete against AI investors (Marcus, Sarah, Nina)</p>
-              </div>
-            </div>
-
-            {activeAuction && activeAuction.active ? (
-              <div className="bg-slate-800/80 p-4 rounded-2xl border border-slate-700 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
-                    Bidding in Progress • 30s Countdown
-                  </span>
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-900 text-slate-300">
-                    Highest: {activeAuction.highestBidder}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-100">{activeAuction.property.address}</h4>
-                    <span className="text-xs text-slate-400">Market Value: {formatCurrency(activeAuction.property.currentValue)}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xs text-slate-400">Current Bid</span>
-                    <div className="text-lg font-black text-emerald-400">
-                      {formatCurrency(activeAuction.currentBid)}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bidding Buttons */}
-                <div className="grid grid-cols-2 gap-2 pt-1">
                   <button
-                    onClick={() => bidInAuction(activeAuction.currentBid + 2500)}
-                    className="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition active:scale-95"
+                    onClick={() => {
+                      setSelectedPropertyToAnalyze(prop);
+                      setNegotiationOffer(prop.askingPrice);
+                    }}
+                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-95"
                   >
-                    Bid +$2,500 ({formatCurrency(activeAuction.currentBid + 2500)})
-                  </button>
-                  <button
-                    onClick={() => closeAuction()}
-                    className="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-xl cursor-pointer"
-                  >
-                    Withdraw / Conclude
+                    <Check className="w-4 h-4 text-emerald-400" />
+                    <span>Analyze & Make Offer</span>
                   </button>
                 </div>
               </div>
-            ) : (
-              <div className="space-y-2.5 pt-2">
-                <p className="text-xs text-slate-300">Select an available distressed asset to open bidding floor:</p>
-                {marketProperties.slice(0, 3).map((prop) => (
-                  <div
-                    key={prop.id}
-                    className="flex items-center justify-between p-3 bg-slate-800/40 border border-slate-800/80 rounded-2xl hover:border-slate-700 transition"
-                  >
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-100">{prop.address}</h4>
-                      <span className="text-[11px] text-slate-400">Asking: {formatCurrency(prop.askingPrice)}</span>
-                    </div>
-                    <button
-                      onClick={() => startAuction(prop.id)}
-                      className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl cursor-pointer transition active:scale-95"
-                    >
-                      Start Bidding
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+            ))}
           </div>
         </div>
       )}

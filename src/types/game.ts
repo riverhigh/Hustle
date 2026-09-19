@@ -56,6 +56,24 @@ export interface PlayerProfile {
   education: string[]; // List of completed degrees / certifications (e.g. 'edu_trade_cert', 'edu_cs_bachelor')
   activeWeeklyJobId?: string; // ID of current weekly salaried career position
   weeklyJobDaysRemaining?: number; // Days until next weekly paycheck (0-6)
+  annualIncomeEarned: number; // Income accumulated this year for 30% tax calculation
+  accumulatedTaxOwed: number; // Pending annual tax bill
+  lastTaxYearPaid: number; // Last in-game year (e.g. 1, 2) tax was filed
+  hasPropertyManagerPass: boolean; // Monthly pass subscription ($4.99-$9.99/mo)
+  propertyManagerPassDaysRemaining?: number; // Days remaining on pass
+  hasVipClubAccess: boolean; // VIP club access for private auctions & exclusive properties
+  ownedLuxuryItems: string[]; // IDs of owned supercars, private supersonic jets, mega yachts
+}
+
+export interface TaxYearRecord {
+  year: number;
+  grossIncome: number;
+  taxRate: number; // 0.30 (30%)
+  taxAmountOwed: number;
+  taxPaid: number;
+  isExempted: boolean;
+  exemptionReason?: string;
+  filedOnDay: number;
 }
 
 export interface BankAccount {
@@ -215,6 +233,8 @@ export interface Property {
   monthlyExpenses: number; // Taxes, insurance, HOA
   daysOnMarket: number;
   isWatchlist?: boolean;
+  isVipExclusive?: boolean;
+  gemPrice?: number;
 }
 
 export interface PropertyAuction {
