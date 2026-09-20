@@ -39,6 +39,7 @@ import { FarbesApp } from './FarbesApp';
 import { VipClubApp } from './VipClubApp';
 import { JobsApp } from './JobsApp';
 import { FinanceApp } from './FinanceApp';
+import { StocksApp } from './StocksApp';
 
 interface ScannedDeal {
   id: string;
@@ -87,12 +88,6 @@ export const PhoneView: React.FC = () => {
     startBusiness,
     buyTransportation
   } = useGame();
-
-  // Stocks App State
-  const [stockSearch, setStockSearch] = useState('');
-  const [selectedStockId, setSelectedStockId] = useState<string | null>(null);
-  const [tradeShares, setTradeShares] = useState(1);
-  const [stockTradeToast, setStockTradeToast] = useState<string | null>(null);
 
   // Market Scanner State
   const [scannedDeals, setScannedDeals] = useState<ScannedDeal[]>([
@@ -373,9 +368,6 @@ export const PhoneView: React.FC = () => {
     return sum + (s ? s.price * h.shares : 0);
   }, 0);
 
-  const selectedStock = stocks.find((s) => s.id === selectedStockId) || stocks[0];
-  const userHolding = portfolio.find((h) => h.stockId === selectedStock?.id);
-
   if (!isPhoneOpen) return null;
 
   return (
@@ -603,140 +595,7 @@ export const PhoneView: React.FC = () => {
 
           {/* SCREEN 2: iSTOCKS APP */}
           {phoneActiveApp === 'stocks' && (
-            <div className="flex-1 flex flex-col overflow-hidden">
-              {/* Portfolio summary bar */}
-              <div className="p-3 bg-slate-900/80 border-b border-slate-800 shrink-0">
-                <div className="flex items-center justify-between text-xs">
-                  <div>
-                    <span className="text-[10px] text-slate-400 block uppercase">Portfolio Equity</span>
-                    <span className="text-base font-black text-slate-100">{formatCurrency(totalStockValue)}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[10px] text-slate-400 block uppercase">Buying Power</span>
-                    <span className="text-base font-bold text-emerald-400">{formatCurrency(player.cash)}</span>
-                  </div>
-                </div>
-
-                {stockTradeToast && (
-                  <div className="mt-2 text-xs bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 px-2.5 py-1 rounded-lg text-center font-semibold animate-in fade-in">
-                    {stockTradeToast}
-                  </div>
-                )}
-              </div>
-
-              {/* Stock List */}
-              <div className="flex-1 overflow-y-auto p-3 space-y-2 no-scrollbar">
-                {stocks.map((stock) => {
-                  const holding = portfolio.find((h) => h.stockId === stock.id);
-                  const isPositive = stock.changePercent >= 0;
-                  const isSelected = selectedStock?.id === stock.id;
-
-                  return (
-                    <div
-                      key={stock.id}
-                      onClick={() => setSelectedStockId(stock.id)}
-                      className={`p-3 rounded-2xl border transition cursor-pointer ${
-                        isSelected
-                          ? 'bg-indigo-950/50 border-indigo-500/80 shadow-md'
-                          : 'bg-slate-900/70 border-slate-800 hover:border-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-sm text-slate-100">{stock.ticker}</span>
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 uppercase font-semibold">
-                              {stock.category}
-                            </span>
-                          </div>
-                          <span className="text-[11px] text-slate-400 block truncate max-w-[140px]">{stock.name}</span>
-                        </div>
-
-                        <div className="text-right">
-                          <div className="text-sm font-bold text-slate-100">{formatCurrency(stock.price)}</div>
-                          <div className={`text-[11px] font-bold flex items-center justify-end gap-0.5 ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-                            {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                            <span>{isPositive ? '+' : ''}{stock.changePercent.toFixed(2)}%</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {holding && holding.shares > 0 && (
-                        <div className="mt-2 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
-                          <span>Owned: <strong className="text-slate-200">{holding.shares} shares</strong></span>
-                          <span>Value: <strong className="text-emerald-400">{formatCurrency(holding.shares * stock.price)}</strong></span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Interactive Trading Sheet */}
-              {selectedStock && (
-                <div className="p-3 bg-slate-950 border-t border-slate-800 shrink-0 space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-slate-200">{selectedStock.ticker} • {formatCurrency(selectedStock.price)}</span>
-                    <span className="text-slate-400 text-[11px]">
-                      Cost: <strong className="text-slate-100">{formatCurrency(selectedStock.price * tradeShares)}</strong>
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center bg-slate-900 border border-slate-700 rounded-xl p-1 shrink-0">
-                      {[1, 5, 10, 50].map((num) => (
-                        <button
-                          key={num}
-                          onClick={() => setTradeShares(num)}
-                          className={`px-2 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                            tradeShares === num ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'
-                          }`}
-                        >
-                          {num}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="flex-1 flex gap-1.5">
-                      <button
-                        onClick={() => {
-                          const cost = selectedStock.price * tradeShares;
-                          if (player.cash >= cost) {
-                            buyStock(selectedStock.id, tradeShares);
-                            setStockTradeToast(`Bought ${tradeShares} shares of ${selectedStock.ticker}!`);
-                            setTimeout(() => setStockTradeToast(null), 2500);
-                          } else {
-                            setStockTradeToast('Insufficient cash!');
-                            setTimeout(() => setStockTradeToast(null), 2500);
-                          }
-                        }}
-                        className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer transition active:scale-95"
-                      >
-                        Buy
-                      </button>
-
-                      <button
-                        disabled={!userHolding || userHolding.shares < tradeShares}
-                        onClick={() => {
-                          if (userHolding && userHolding.shares >= tradeShares) {
-                            sellStock(selectedStock.id, tradeShares);
-                            setStockTradeToast(`Sold ${tradeShares} shares of ${selectedStock.ticker}!`);
-                            setTimeout(() => setStockTradeToast(null), 2500);
-                          }
-                        }}
-                        className={`flex-1 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
-                          userHolding && userHolding.shares >= tradeShares
-                            ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-md active:scale-95'
-                            : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                        }`}
-                      >
-                        Sell
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            <StocksApp onBack={() => setPhoneActiveApp('home')} />
           )}
 
           {/* SCREEN: WORKFORCE PRO JOBS APP */}

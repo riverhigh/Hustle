@@ -109,11 +109,11 @@ export const RestModal: React.FC<RestModalProps> = ({ isOpen, onClose }) => {
               sleep();
               onClose();
             }}
-            className="flex flex-col items-center justify-center p-3 bg-indigo-600/30 hover:bg-indigo-600/40 border border-indigo-500/50 rounded-2xl cursor-pointer transition active:scale-95 text-left"
+            className="flex flex-col items-center justify-center p-3.5 bg-gradient-to-br from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white border border-indigo-400/50 rounded-2xl cursor-pointer transition active:scale-95 shadow-md"
           >
-            <BedDouble className="w-5 h-5 text-indigo-300 mb-1" />
-            <span className="text-xs font-bold text-indigo-200">Full Night Sleep</span>
-            <span className="text-[11px] text-indigo-300 mt-0.5">Advance to Next Morning</span>
+            <BedDouble className="w-6 h-6 text-white mb-1" />
+            <span className="text-xs font-black text-white">Full Night Sleep</span>
+            <span className="text-[11px] text-indigo-100 font-semibold mt-0.5">+100⚡ • Next Morning</span>
           </button>
         </div>
       </div>

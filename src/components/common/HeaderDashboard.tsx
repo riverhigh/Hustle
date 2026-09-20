@@ -173,15 +173,13 @@ export const HeaderDashboard: React.FC<HeaderDashboardProps> = ({ onOpenRest, on
           </div>
         </div>
 
-        {/* Card 2: Life, Energy & Clock */}
+        {/* Card 2: Life & Energy */}
         <div className="bg-slate-800/85 border border-slate-700/60 rounded-2xl p-2.5 flex flex-col justify-between shadow-sm">
           {/* Energy header with Refuel */}
           <div className="flex items-center justify-between text-[11px]">
             <div className="flex items-center gap-1 font-bold text-slate-400">
-              <Zap className={`w-3.5 h-3.5 ${isLowEnergy ? 'text-rose-400 fill-rose-400' : 'text-amber-400'}`} />
-              <span className={isLowEnergy ? 'text-rose-300 font-black animate-pulse' : 'text-slate-300'}>
-                {player.energy} / {player.maxEnergy}
-              </span>
+              <Zap className={`w-3.5 h-3.5 ${isLowEnergy ? 'text-rose-400 fill-rose-400 animate-pulse' : 'text-amber-400'}`} />
+              <span className="tracking-wider">ENERGY</span>
             </div>
             <button
               onClick={onOpenRest}
@@ -191,8 +189,17 @@ export const HeaderDashboard: React.FC<HeaderDashboardProps> = ({ onOpenRest, on
             </button>
           </div>
 
+          <div className="flex items-baseline justify-between my-0.5">
+            <span className={`text-base sm:text-lg font-black tracking-tight ${isLowEnergy ? 'text-rose-400 animate-pulse' : 'text-slate-100'}`}>
+              {player.energy} <span className="text-xs font-semibold text-slate-400">/ {player.maxEnergy} ⚡</span>
+            </span>
+            <span className="text-[10px] text-slate-400 font-medium">
+              {isLowEnergy ? 'Exhausted' : player.energy < 50 ? 'Tired' : 'Rested'}
+            </span>
+          </div>
+
           {/* Energy Progress Bar */}
-          <div className="w-full bg-slate-700/60 h-1.5 rounded-full overflow-hidden my-1.5">
+          <div className="w-full bg-slate-700/60 h-1.5 rounded-full overflow-hidden mt-1">
             <div 
               className={`h-full transition-all duration-300 ${
                 isLowEnergy ? 'bg-rose-500' : player.energy < 50 ? 'bg-amber-400' : 'bg-emerald-400'
@@ -200,35 +207,45 @@ export const HeaderDashboard: React.FC<HeaderDashboardProps> = ({ onOpenRest, on
               style={{ width: `${Math.min(100, (player.energy / player.maxEnergy) * 100)}%` }}
             />
           </div>
-
-          {/* Clock, Sleep & News */}
-          <div className="flex items-center justify-between text-[11px] text-slate-300 pt-1 border-t border-slate-700/40">
-            <div className="flex items-center gap-1 font-medium text-slate-300">
-              {getPhaseIcon()}
-              <span>Day {player.daysPlayed}</span>
-              <span className="text-slate-500">•</span>
-              <span className="font-semibold text-slate-100">{formatTime(player.currentHour, player.currentMinute)}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={sleep}
-                className="px-2 py-0.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] shadow-sm transition active:scale-95 cursor-pointer flex items-center gap-0.5"
-                title="End Day & Sleep"
-              >
-                <BedDouble className="w-3 h-3 text-indigo-100" />
-                <span>Sleep</span>
-              </button>
-              <button
-                onClick={onOpenNews}
-                className="p-1 text-slate-400 hover:text-slate-200 cursor-pointer relative"
-                title="Market News"
-              >
-                <Bell className="w-3.5 h-3.5" />
-                <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-emerald-400 rounded-full" />
-              </button>
-            </div>
-          </div>
         </div>
+      </div>
+
+      {/* Dedicated Time & Prominent Large Sleep Action Bar */}
+      <div className="flex items-center gap-2 pt-0.5">
+        {/* Day & Time Capsule */}
+        <div className="flex items-center gap-1.5 px-3 py-2 bg-slate-800/90 border border-slate-700/70 rounded-xl text-xs font-semibold text-slate-200 shrink-0 shadow-sm">
+          {getPhaseIcon()}
+          <span>Day {player.daysPlayed}</span>
+          <span className="text-slate-500">•</span>
+          <span className="font-bold text-white">{formatTime(player.currentHour, player.currentMinute)}</span>
+        </div>
+
+        {/* Large Prominent Sleep Button */}
+        <button
+          onClick={sleep}
+          className={`flex-1 py-2.5 px-3.5 rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer transition active:scale-95 shadow-md ${
+            isLowEnergy
+              ? 'bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white ring-2 ring-indigo-400/80 shadow-indigo-500/30 animate-pulse'
+              : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+          }`}
+          title="Sleep to advance to next day, restore 100% energy, and process daily interest & business profits"
+        >
+          <BedDouble className="w-4 h-4 text-indigo-100 shrink-0" />
+          <span className="tracking-wide">Sleep & Next Day</span>
+          <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-indigo-950/80 text-indigo-200 border border-indigo-400/40 hidden xs:inline">
+            +100⚡
+          </span>
+        </button>
+
+        {/* Market News Bell */}
+        <button
+          onClick={onOpenNews}
+          className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-slate-300 transition active:scale-95 cursor-pointer relative shrink-0 shadow-sm"
+          title="Daily Financial & Local News"
+        >
+          <Bell className="w-4 h-4" />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+        </button>
       </div>
 
       {/* System Settings & Save Modal */}

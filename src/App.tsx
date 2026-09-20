@@ -68,19 +68,6 @@ const MainAppContent: React.FC = () => {
           </main>
         </PullToRefresh>
 
-        {/* Floating Quick Phone Launcher Button */}
-        {!isPhoneOpen && (
-          <button
-            onClick={() => setIsPhoneOpen(true)}
-            className="fixed bottom-20 right-4 sm:right-6 md:right-8 z-40 flex items-center gap-2 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/60 hover:border-indigo-400 text-indigo-200 px-3.5 py-2 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all cursor-pointer group backdrop-blur-md"
-            title="Open Smartphone"
-          >
-            <Smartphone className="w-4 h-4 text-indigo-400 group-hover:rotate-12 transition-transform" />
-            <span className="text-xs font-bold tracking-wide">Phone</span>
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          </button>
-        )}
-
         {/* Fixed Bottom Navigation */}
         <BottomNavigation />
 
