@@ -6,6 +6,11 @@ import { GEM_BUNDLES, GemBundle } from './src/constants/gemBundles';
 
 dotenv.config();
 
+// Ensure DISABLE_HMR default matches AI Studio platform guidelines for custom servers
+if (process.env.DISABLE_HMR === undefined) {
+  process.env.DISABLE_HMR = 'true';
+}
+
 const app = express();
 const PORT = 3000;
 

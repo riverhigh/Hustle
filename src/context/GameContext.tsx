@@ -100,6 +100,7 @@ interface GameContextType {
   financeVehicle: (tier: number) => boolean;
   
   // Banking & Debt
+  openBankAccount: () => boolean;
   depositBank: (accountId: 'checking' | 'savings' | 'emergency', amount: number) => boolean;
   withdrawBank: (accountId: 'checking' | 'savings' | 'emergency', amount: number) => boolean;
   payCreditCard: (cardId: string, amount: number) => boolean;

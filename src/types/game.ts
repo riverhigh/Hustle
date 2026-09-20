@@ -63,6 +63,7 @@ export interface PlayerProfile {
   propertyManagerPassDaysRemaining?: number; // Days remaining on pass
   hasVipClubAccess: boolean; // VIP club access for private auctions & exclusive properties
   ownedLuxuryItems: string[]; // IDs of owned supercars, private supersonic jets, mega yachts
+  hasBankAccount?: boolean; // Requires $500 opening payment to activate Checking & Savings
 }
 
 export interface TaxYearRecord {

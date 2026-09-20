@@ -50,6 +50,7 @@ export const INITIAL_PLAYER: PlayerProfile = {
   propertyManagerPassDaysRemaining: 0,
   hasVipClubAccess: false,
   ownedLuxuryItems: [],
+  hasBankAccount: false,
 };
 
 export const HOUSING_TIERS = [

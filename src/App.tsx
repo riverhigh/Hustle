@@ -11,7 +11,6 @@ import { TutorialModal } from './components/modals/TutorialModal';
 import { PremiumStoreModal } from './components/modals/PremiumStoreModal';
 import { HustleView } from './components/hustle/HustleView';
 import { PropertiesView } from './components/properties/PropertiesView';
-import { FinanceView } from './components/finance/FinanceView';
 import { MarketView } from './components/market/MarketView';
 import { SelfView } from './components/self/SelfView';
 import { PhoneView } from './components/phone/PhoneView';
