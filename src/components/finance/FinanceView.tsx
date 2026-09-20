@@ -6,9 +6,9 @@ import {
   GEM_BUNDLES, 
   GEM_CASH_EXCHANGES, 
   GEM_PERKS, 
-  initiatePaystackCheckout, 
   GemBundle 
 } from '../../utils/paystack';
+import { PaystackCheckoutModal } from '../modals/PaystackCheckoutModal';
 import { 
   Landmark, 
   CreditCard, 
@@ -67,8 +67,8 @@ export const FinanceView: React.FC = () => {
   const [newLoanTerm, setNewLoanTerm] = useState<number>(12);
 
   // Store tab states
-  const [storeCurrency, setStoreCurrency] = useState<'USD' | 'NGN'>('USD');
-  const [isProcessingStore, setIsProcessingStore] = useState<boolean>(false);
+  const [storeCurrency, setStoreCurrency] = useState<'USD' | 'NGN'>('NGN');
+  const [selectedBundleForCheckout, setSelectedBundleForCheckout] = useState<GemBundle | null>(null);
 
   const creditTier = getCreditScoreTier(player.creditScore);
 
@@ -80,22 +80,8 @@ export const FinanceView: React.FC = () => {
   // Calculators for vehicle financing showroom
   const vehiclesToFinance = TRANSPORTATION_TIERS.filter((t) => t.canFinance);
 
-  const handleBuyBundle = async (bundle: GemBundle) => {
-    setIsProcessingStore(true);
-    await initiatePaystackCheckout({
-      bundle,
-      currency: storeCurrency,
-      customerEmail: 'printblue436@gmail.com',
-      onSuccess: (ref, totalGems) => {
-        setIsProcessingStore(false);
-        buyGemsWithPaystack(totalGems, ref);
-      },
-      onClose: () => setIsProcessingStore(false),
-      onError: (err) => {
-        setIsProcessingStore(false);
-        console.error('Paystack error:', err);
-      },
-    });
+  const handleBuyBundle = (bundle: GemBundle) => {
+    setSelectedBundleForCheckout(bundle);
   };
 
   return (
@@ -682,7 +668,6 @@ export const FinanceView: React.FC = () => {
 
                     <button
                       onClick={() => handleBuyBundle(bundle)}
-                      disabled={isProcessingStore}
                       className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl cursor-pointer shadow-sm transition active:scale-95"
                     >
                       Buy {priceFormatted} (Paystack)
@@ -846,6 +831,17 @@ export const FinanceView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Paystack Checkout & Real-Time Verification Modal */}
+      <PaystackCheckoutModal
+        isOpen={Boolean(selectedBundleForCheckout)}
+        onClose={() => setSelectedBundleForCheckout(null)}
+        bundle={selectedBundleForCheckout}
+        currency={storeCurrency}
+        onSuccess={(ref, totalGems) => {
+          buyGemsWithPaystack(totalGems, ref);
+        }}
+      />
     </div>
   );
 };

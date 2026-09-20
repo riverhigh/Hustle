@@ -33,13 +33,19 @@ import {
   ArrowRight,
   Crown,
   Receipt,
-  Briefcase
+  Briefcase,
+  Newspaper,
+  Camera,
+  Music
 } from 'lucide-react';
 import { FarbesApp } from './FarbesApp';
 import { VipClubApp } from './VipClubApp';
 import { JobsApp } from './JobsApp';
 import { FinanceApp } from './FinanceApp';
 import { StocksApp } from './StocksApp';
+import { TakTakApp } from './TakTakApp';
+import { SGramApp } from './SGramApp';
+import { NewsApp } from './NewsApp';
 
 interface ScannedDeal {
   id: string;
@@ -76,6 +82,7 @@ export const PhoneView: React.FC = () => {
     phoneActiveApp, 
     setPhoneActiveApp,
     player,
+    socialProfile,
     stocks,
     portfolio,
     buyStock,
@@ -416,6 +423,9 @@ export const PhoneView: React.FC = () => {
                 {phoneActiveApp === 'jobs' && '💼 WorkForce PRO'}
                 {(phoneActiveApp === 'bank' || phoneActiveApp === 'finance') && '🏦 Vance Mobile Bank'}
                 {phoneActiveApp === 'stocks' && '📈 iStocks Exchange'}
+                {phoneActiveApp === 'taktak' && '🎵 TakTak'}
+                {phoneActiveApp === 'sgram' && '📸 SGram'}
+                {phoneActiveApp === 'news' && '📰 Empire News'}
                 {phoneActiveApp === 'scanner' && '📡 DealRadar Scanner'}
                 {phoneActiveApp === 'auctions' && '🔨 Distressed Auctions'}
                 {phoneActiveApp === 'farbes' && '🏆 Farbes 100 Richest'}
@@ -436,10 +446,11 @@ export const PhoneView: React.FC = () => {
           {phoneActiveApp === 'home' && (
             <div className="flex-1 p-4 flex flex-col justify-between overflow-y-auto no-scrollbar">
               {/* Close Button top-right */}
-              <div className="flex justify-end pt-1">
+              <div className="flex justify-between items-center pt-1">
+                <span className="text-[11px] font-bold text-slate-400">Monday, Day {player.daysPlayed}</span>
                 <button
                   onClick={() => setIsPhoneOpen(false)}
-                  className="p-2 rounded-full bg-slate-800/70 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
+                  className="p-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
                   title="Close iPhone"
                 >
                   <X className="w-4 h-4" />
@@ -447,11 +458,11 @@ export const PhoneView: React.FC = () => {
               </div>
 
               {/* iOS Live Widgets */}
-              <div className="space-y-3 pt-2">
+              <div className="space-y-2.5 pt-2">
                 {/* Financial Summary Widget */}
                 <div 
                   onClick={() => setPhoneActiveApp('bank')}
-                  className="bg-gradient-to-br from-indigo-950/80 via-slate-900/90 to-slate-900/90 border border-indigo-500/30 rounded-3xl p-4 shadow-xl backdrop-blur-md cursor-pointer hover:border-indigo-400/50 transition group"
+                  className="bg-gradient-to-br from-indigo-950/80 via-slate-900/90 to-slate-900/90 border border-indigo-500/30 rounded-3xl p-3.5 shadow-xl backdrop-blur-md cursor-pointer hover:border-indigo-400/50 transition group"
                 >
                   <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
                     <span className="font-semibold uppercase tracking-wider text-[10px] text-indigo-300">Vance Mobile Bank</span>
@@ -469,125 +480,191 @@ export const PhoneView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Market Pulse Widget */}
-                <div 
-                  onClick={() => setPhoneActiveApp('scanner')}
-                  className="bg-slate-900/80 border border-slate-800 hover:border-cyan-500/40 rounded-2xl p-3 cursor-pointer transition shadow-md flex items-center justify-between group"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center group-hover:scale-105 transition">
-                      <Radio className="w-5 h-5 animate-pulse" />
+                {/* Social Media & News Pulse Widget */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div 
+                    onClick={() => setPhoneActiveApp('taktak')}
+                    className="p-2.5 rounded-2xl bg-gradient-to-br from-pink-950/60 to-slate-900 border border-pink-500/30 hover:border-pink-400/60 transition cursor-pointer group shadow-sm"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black tracking-tight text-pink-400">TakTak</span>
+                      <Flame className="w-3.5 h-3.5 text-pink-400 animate-pulse" />
                     </div>
-                    <div>
-                      <span className="text-xs font-bold text-slate-200 block">DealRadar PRO</span>
-                      <span className="text-[10px] text-slate-400">{scannedDeals.length} active arbitrage opportunities</span>
+                    <div className="text-sm font-black text-white mt-1">
+                      {socialProfile.taktakFollowers > 1000 
+                        ? `${(socialProfile.taktakFollowers / 1000).toFixed(1)}k` 
+                        : socialProfile.taktakFollowers}
                     </div>
+                    <span className="text-[9px] text-slate-400">Followers</span>
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-1 bg-cyan-950/70 border border-cyan-800 text-cyan-300 rounded-lg">
-                    SCAN
-                  </span>
+
+                  <div 
+                    onClick={() => setPhoneActiveApp('sgram')}
+                    className="p-2.5 rounded-2xl bg-gradient-to-br from-amber-950/60 via-purple-950/40 to-slate-900 border border-amber-500/30 hover:border-amber-400/60 transition cursor-pointer group shadow-sm"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black tracking-tight text-amber-300">SGram</span>
+                      <Camera className="w-3.5 h-3.5 text-amber-400" />
+                    </div>
+                    <div className="text-sm font-black text-white mt-1">
+                      {socialProfile.sgramFollowers > 1000 
+                        ? `${(socialProfile.sgramFollowers / 1000).toFixed(1)}k` 
+                        : socialProfile.sgramFollowers}
+                    </div>
+                    <span className="text-[9px] text-slate-400">Reach</span>
+                  </div>
                 </div>
               </div>
 
               {/* iOS App Grid */}
-              <div className="py-4">
-                <div className="grid grid-cols-4 gap-y-4 gap-x-2 text-center">
-                  {/* App 1: Jobs / WorkForce */}
+              <div className="py-3">
+                <div className="grid grid-cols-4 gap-y-3.5 gap-x-2 text-center">
+                  {/* App 1: TakTak Social */}
                   <button
-                    onClick={() => setPhoneActiveApp('jobs')}
-                    className="flex flex-col items-center gap-1.5 group cursor-pointer active:scale-95 transition"
+                    onClick={() => setPhoneActiveApp('taktak')}
+                    className="flex flex-col items-center gap-1 group cursor-pointer active:scale-95 transition"
                   >
-                    <div className="w-13 h-13 rounded-2xl bg-gradient-to-b from-blue-600 to-indigo-900 border border-blue-400/50 shadow-lg flex items-center justify-center text-white group-hover:scale-105 transition">
-                      <Briefcase className="w-6 h-6" />
+                    <div className="w-12 h-12 rounded-[20px] bg-gradient-to-tr from-black via-pink-950 to-cyan-950 border border-pink-500/40 shadow-lg flex items-center justify-center text-pink-400 group-hover:scale-105 transition relative">
+                      <Flame className="w-5 h-5" />
+                      <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-pink-500 text-[8px] font-black text-white flex items-center justify-center shadow">
+                        HOT
+                      </span>
                     </div>
-                    <span className="text-[11px] font-medium text-slate-200">Jobs</span>
+                    <span className="text-[10px] font-medium text-slate-200">TakTak</span>
                   </button>
 
-                  {/* App 2: Bank / Finance */}
+                  {/* App 2: SGram Social */}
                   <button
-                    onClick={() => setPhoneActiveApp('bank')}
-                    className="flex flex-col items-center gap-1.5 group cursor-pointer active:scale-95 transition"
+                    onClick={() => setPhoneActiveApp('sgram')}
+                    className="flex flex-col items-center gap-1 group cursor-pointer active:scale-95 transition"
                   >
-                    <div className="w-13 h-13 rounded-2xl bg-gradient-to-b from-emerald-600 to-emerald-900 border border-emerald-400/50 shadow-lg flex items-center justify-center text-white group-hover:scale-105 transition">
-                      <Landmark className="w-6 h-6" />
+                    <div className="w-12 h-12 rounded-[20px] bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 border border-white/20 shadow-lg flex items-center justify-center text-white group-hover:scale-105 transition">
+                      <Camera className="w-5 h-5" />
                     </div>
-                    <span className="text-[11px] font-medium text-slate-200">Finance</span>
+                    <span className="text-[10px] font-medium text-slate-200">SGram</span>
                   </button>
 
-                  {/* App 3: Stocks */}
+                  {/* App 3: Empire News */}
+                  <button
+                    onClick={() => setPhoneActiveApp('news')}
+                    className="flex flex-col items-center gap-1 group cursor-pointer active:scale-95 transition"
+                  >
+                    <div className="w-12 h-12 rounded-[20px] bg-gradient-to-b from-rose-600 to-rose-900 border border-rose-400/50 shadow-lg flex items-center justify-center text-white group-hover:scale-105 transition relative">
+                      <Newspaper className="w-5 h-5" />
+                      <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    </div>
+                    <span className="text-[10px] font-medium text-slate-200">News</span>
+                  </button>
+
+                  {/* App 4: Stocks */}
                   <button
                     onClick={() => setPhoneActiveApp('stocks')}
-                    className="flex flex-col items-center gap-1.5 group cursor-pointer active:scale-95 transition"
+                    className="flex flex-col items-center gap-1 group cursor-pointer active:scale-95 transition"
                   >
-                    <div className="w-13 h-13 rounded-2xl bg-gradient-to-b from-slate-800 to-black border border-slate-700/80 shadow-lg flex items-center justify-center text-emerald-400 group-hover:border-emerald-500/60 transition">
-                      <TrendingUp className="w-6 h-6" />
+                    <div className="w-12 h-12 rounded-[20px] bg-gradient-to-b from-slate-900 to-black border border-emerald-500/40 shadow-lg flex items-center justify-center text-emerald-400 group-hover:scale-105 transition">
+                      <TrendingUp className="w-5 h-5" />
                     </div>
-                    <span className="text-[11px] font-medium text-slate-200">Stocks</span>
+                    <span className="text-[10px] font-medium text-slate-200">Stocks</span>
                   </button>
 
-                  {/* App 4: Market Scanner */}
+                  {/* App 5: Bank / Finance */}
+                  <button
+                    onClick={() => setPhoneActiveApp('bank')}
+                    className="flex flex-col items-center gap-1 group cursor-pointer active:scale-95 transition"
+                  >
+                    <div className="w-12 h-12 rounded-[20px] bg-gradient-to-b from-emerald-600 to-emerald-900 border border-emerald-400/50 shadow-lg flex items-center justify-center text-white group-hover:scale-105 transition">
+                      <Landmark className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] font-medium text-slate-200">Finance</span>
+                  </button>
+
+                  {/* App 6: Jobs / WorkForce */}
+                  <button
+                    onClick={() => setPhoneActiveApp('jobs')}
+                    className="flex flex-col items-center gap-1 group cursor-pointer active:scale-95 transition"
+                  >
+                    <div className="w-12 h-12 rounded-[20px] bg-gradient-to-b from-blue-600 to-indigo-900 border border-blue-400/50 shadow-lg flex items-center justify-center text-white group-hover:scale-105 transition">
+                      <Briefcase className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] font-medium text-slate-200">Jobs</span>
+                  </button>
+
+                  {/* App 7: Market Scanner */}
                   <button
                     onClick={() => setPhoneActiveApp('scanner')}
-                    className="flex flex-col items-center gap-1.5 group cursor-pointer active:scale-95 transition"
+                    className="flex flex-col items-center gap-1 group cursor-pointer active:scale-95 transition"
                   >
-                    <div className="w-13 h-13 rounded-2xl bg-gradient-to-b from-cyan-600 to-blue-950 border border-cyan-400/50 shadow-lg flex items-center justify-center text-white group-hover:scale-105 transition">
-                      <Radio className="w-6 h-6" />
+                    <div className="w-12 h-12 rounded-[20px] bg-gradient-to-b from-cyan-600 to-blue-950 border border-cyan-400/50 shadow-lg flex items-center justify-center text-white group-hover:scale-105 transition">
+                      <Radio className="w-5 h-5" />
                     </div>
-                    <span className="text-[11px] font-medium text-slate-200">Scanner</span>
+                    <span className="text-[10px] font-medium text-slate-200">Scanner</span>
                   </button>
 
-                  {/* App 5: Distressed Auctions */}
+                  {/* App 8: Distressed Auctions */}
                   <button
                     onClick={() => setPhoneActiveApp('auctions')}
-                    className="flex flex-col items-center gap-1.5 group cursor-pointer active:scale-95 transition"
+                    className="flex flex-col items-center gap-1 group cursor-pointer active:scale-95 transition"
                   >
-                    <div className="w-13 h-13 rounded-2xl bg-gradient-to-b from-amber-600 to-orange-950 border border-amber-400/50 shadow-lg flex items-center justify-center text-white group-hover:scale-105 transition">
-                      <Gavel className="w-6 h-6" />
+                    <div className="w-12 h-12 rounded-[20px] bg-gradient-to-b from-amber-600 to-orange-950 border border-amber-400/50 shadow-lg flex items-center justify-center text-white group-hover:scale-105 transition">
+                      <Gavel className="w-5 h-5" />
                     </div>
-                    <span className="text-[11px] font-medium text-slate-200">Auctions</span>
+                    <span className="text-[10px] font-medium text-slate-200">Auctions</span>
                   </button>
 
-                  {/* App 6: Farbes Richest 100 */}
+                  {/* App 9: Farbes Richest 100 */}
                   <button
                     onClick={() => setPhoneActiveApp('farbes')}
-                    className="flex flex-col items-center gap-1.5 group cursor-pointer active:scale-95 transition"
+                    className="flex flex-col items-center gap-1 group cursor-pointer active:scale-95 transition"
                   >
-                    <div className="w-13 h-13 rounded-2xl bg-gradient-to-b from-amber-400 via-amber-600 to-slate-950 border border-amber-300/80 shadow-xl flex items-center justify-center text-slate-950 group-hover:scale-105 transition relative">
-                      <Award className="w-6 h-6 text-slate-950 stroke-[2.5]" />
-                      <span className="absolute -bottom-1 text-[8px] font-black tracking-tighter bg-black/90 text-amber-300 px-1 rounded">100</span>
+                    <div className="w-12 h-12 rounded-[20px] bg-gradient-to-b from-amber-400 via-amber-600 to-slate-950 border border-amber-300/80 shadow-xl flex items-center justify-center text-slate-950 group-hover:scale-105 transition relative">
+                      <Award className="w-5 h-5 text-slate-950 stroke-[2.5]" />
+                      <span className="absolute -bottom-1 text-[7px] font-black tracking-tighter bg-black text-amber-300 px-1 rounded">100</span>
                     </div>
-                    <span className="text-[11px] font-bold text-amber-300">Farbes</span>
+                    <span className="text-[10px] font-bold text-amber-300">Farbes</span>
                   </button>
 
-                  {/* App 7: VIP Club & Luxury */}
+                  {/* App 10: VIP Club & Luxury */}
                   <button
                     onClick={() => setPhoneActiveApp('vip')}
-                    className="flex flex-col items-center gap-1.5 group cursor-pointer active:scale-95 transition"
+                    className="flex flex-col items-center gap-1 group cursor-pointer active:scale-95 transition"
                   >
-                    <div className="w-13 h-13 rounded-2xl bg-gradient-to-b from-neutral-800 via-neutral-900 to-black border border-amber-500/60 shadow-xl flex items-center justify-center text-amber-400 group-hover:scale-105 transition">
-                      <Crown className="w-6 h-6" />
+                    <div className="w-12 h-12 rounded-[20px] bg-gradient-to-b from-neutral-800 via-neutral-900 to-black border border-amber-500/60 shadow-xl flex items-center justify-center text-amber-400 group-hover:scale-105 transition">
+                      <Crown className="w-5 h-5" />
                     </div>
-                    <span className="text-[11px] font-bold text-slate-200">VIP Club</span>
+                    <span className="text-[10px] font-bold text-slate-200">VIP Club</span>
                   </button>
                 </div>
               </div>
 
               {/* iOS Bottom Dock */}
-              <div className="bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-3xl p-2.5 mb-2 flex items-center justify-around shadow-2xl">
-                <button onClick={() => setPhoneActiveApp('jobs')} className="p-2 rounded-xl text-slate-300 hover:text-blue-400 transition cursor-pointer" title="Jobs">
-                  <Briefcase className="w-5 h-5" />
-                </button>
-                <button onClick={() => setPhoneActiveApp('bank')} className="p-2 rounded-xl text-slate-300 hover:text-emerald-400 transition cursor-pointer" title="Finance">
+              <div className="bg-white/10 backdrop-blur-2xl border border-white/20 rounded-[28px] p-2 mb-1 flex items-center justify-around shadow-2xl">
+                <button 
+                  onClick={() => setPhoneActiveApp('bank')} 
+                  className="w-11 h-11 rounded-[18px] bg-gradient-to-b from-emerald-600 to-emerald-900 text-white flex items-center justify-center shadow hover:scale-105 transition cursor-pointer" 
+                  title="Finance"
+                >
                   <Landmark className="w-5 h-5" />
                 </button>
-                <button onClick={() => setPhoneActiveApp('stocks')} className="p-2 rounded-xl text-slate-300 hover:text-emerald-400 transition cursor-pointer" title="Stocks">
+                <button 
+                  onClick={() => setPhoneActiveApp('taktak')} 
+                  className="w-11 h-11 rounded-[18px] bg-gradient-to-tr from-black via-pink-900 to-cyan-950 text-pink-400 flex items-center justify-center shadow hover:scale-105 transition cursor-pointer" 
+                  title="TakTak"
+                >
+                  <Flame className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={() => setPhoneActiveApp('sgram')} 
+                  className="w-11 h-11 rounded-[18px] bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 text-white flex items-center justify-center shadow hover:scale-105 transition cursor-pointer" 
+                  title="SGram"
+                >
+                  <Camera className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={() => setPhoneActiveApp('stocks')} 
+                  className="w-11 h-11 rounded-[18px] bg-gradient-to-b from-slate-900 to-black border border-emerald-500/40 text-emerald-400 flex items-center justify-center shadow hover:scale-105 transition cursor-pointer" 
+                  title="Stocks"
+                >
                   <TrendingUp className="w-5 h-5" />
-                </button>
-                <button onClick={() => setPhoneActiveApp('scanner')} className="p-2 rounded-xl text-slate-300 hover:text-cyan-400 transition cursor-pointer" title="DealScanner">
-                  <Radio className="w-5 h-5" />
-                </button>
-                <button onClick={() => setPhoneActiveApp('farbes')} className="p-2 rounded-xl text-amber-400 hover:text-amber-300 transition cursor-pointer" title="Farbes 100">
-                  <Award className="w-5 h-5" />
                 </button>
               </div>
             </div>
@@ -832,6 +909,21 @@ export const PhoneView: React.FC = () => {
           {phoneActiveApp === 'vip' && (
             <VipClubApp onBack={() => setPhoneActiveApp('home')} />
           )}
+
+          {/* SCREEN 7: TAKTAK APP */}
+          {phoneActiveApp === 'taktak' && (
+            <TakTakApp />
+          )}
+
+          {/* SCREEN 8: SGRAM APP */}
+          {phoneActiveApp === 'sgram' && (
+            <SGramApp />
+          )}
+
+          {/* SCREEN 9: NEWS APP */}
+          {phoneActiveApp === 'news' && (
+            <NewsApp />
+          )}
         </div>
 
         {/* iOS Bottom Home Bar Indicator */}
@@ -844,7 +936,7 @@ export const PhoneView: React.FC = () => {
                 setIsPhoneOpen(false);
               }
             }}
-            className="w-32 h-1 bg-slate-500 hover:bg-slate-300 rounded-full transition cursor-pointer"
+            className="w-36 h-1 bg-white/70 hover:bg-white active:scale-95 rounded-full transition cursor-pointer"
             title="Swipe up for Home / Close"
           />
         </div>

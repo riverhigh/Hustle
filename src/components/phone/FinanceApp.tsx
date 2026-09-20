@@ -6,9 +6,9 @@ import {
   GEM_BUNDLES, 
   GEM_CASH_EXCHANGES, 
   GEM_PERKS, 
-  initiatePaystackCheckout, 
   GemBundle 
 } from '../../utils/paystack';
+import { PaystackCheckoutModal } from '../modals/PaystackCheckoutModal';
 import { 
   Landmark, 
   CreditCard, 
@@ -124,23 +124,10 @@ export const FinanceApp: React.FC<FinanceAppProps> = ({ onBack }) => {
     }
   };
 
-  const handleBuyBundle = async (bundle: GemBundle) => {
-    setIsProcessingStore(true);
-    await initiatePaystackCheckout({
-      bundle,
-      currency: storeCurrency,
-      customerEmail: 'printblue436@gmail.com',
-      onSuccess: (ref, totalGems) => {
-        setIsProcessingStore(false);
-        buyGemsWithPaystack(totalGems, ref);
-        triggerToast(`Success! +${totalGems} Gems added!`);
-      },
-      onClose: () => setIsProcessingStore(false),
-      onError: (err) => {
-        setIsProcessingStore(false);
-        console.error('Paystack error:', err);
-      },
-    });
+  const [selectedBundleForCheckout, setSelectedBundleForCheckout] = useState<GemBundle | null>(null);
+
+  const handleBuyBundle = (bundle: GemBundle) => {
+    setSelectedBundleForCheckout(bundle);
   };
 
   return (
@@ -654,7 +641,6 @@ export const FinanceApp: React.FC<FinanceAppProps> = ({ onBack }) => {
                   </div>
                   <button
                     onClick={() => handleBuyBundle(b)}
-                    disabled={isProcessingStore}
                     className="mt-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs transition cursor-pointer shadow active:scale-95"
                   >
                     {storeCurrency === 'USD' ? `$${b.priceUSD}` : `₦${b.priceNGN.toLocaleString()}`}
@@ -812,6 +798,18 @@ export const FinanceApp: React.FC<FinanceAppProps> = ({ onBack }) => {
           </div>
         </div>
       )}
+
+      {/* Paystack Checkout & Real-Time Verification Modal */}
+      <PaystackCheckoutModal
+        isOpen={Boolean(selectedBundleForCheckout)}
+        onClose={() => setSelectedBundleForCheckout(null)}
+        bundle={selectedBundleForCheckout}
+        currency={storeCurrency}
+        onSuccess={(ref, totalGems) => {
+          buyGemsWithPaystack(totalGems, ref);
+          triggerToast(`Success! +${totalGems} Gems added!`);
+        }}
+      />
     </div>
   );
 };

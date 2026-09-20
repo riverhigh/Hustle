@@ -22,6 +22,8 @@ import {
   SaveSlotMeta,
   EducationCourse,
   TaxYearRecord,
+  PhoneAppId,
+  SocialProfile,
 } from '../types/game';
 import { LUXURY_ITEMS } from '../constants/luxuryItems';
 import {
@@ -158,9 +160,16 @@ interface GameContextType {
   // In-App iPhone
   isPhoneOpen: boolean;
   setIsPhoneOpen: (open: boolean) => void;
-  phoneActiveApp: 'home' | 'stocks' | 'bank' | 'scanner' | 'auctions' | 'farbes' | 'vip' | 'jobs' | 'finance';
-  setPhoneActiveApp: (app: 'home' | 'stocks' | 'bank' | 'scanner' | 'auctions' | 'farbes' | 'vip' | 'jobs' | 'finance') => void;
-  openPhoneApp: (app: 'home' | 'stocks' | 'bank' | 'scanner' | 'auctions' | 'farbes' | 'vip' | 'jobs' | 'finance') => void;
+  phoneActiveApp: PhoneAppId;
+  setPhoneActiveApp: (app: PhoneAppId) => void;
+  openPhoneApp: (app: PhoneAppId) => void;
+
+  // Social Media (TakTak & SGram)
+  socialProfile: SocialProfile;
+  addSocialFollowers: (network: 'taktak' | 'sgram', followers: number, likes?: number) => void;
+  claimCreatorEarnings: () => boolean;
+  spendEnergy: (amount: number) => boolean;
+  earnCash: (amount: number, reason?: string) => void;
 
   // Events & Missions & System
   chooseEventOption: (choiceId: string) => void;
@@ -177,8 +186,25 @@ const LOCAL_STORAGE_KEY = 'hustle_empire_sim_state_v1';
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Save Slot & Menu system
-  const [activeSlotId, setActiveSlotId] = useState<(1 | 2 | 3) | null>(null);
+  // Save Slot & Menu system with persistent session auto-restore
+  const [activeSlotId, setActiveSlotId] = useState<(1 | 2 | 3) | null>(() => {
+    try {
+      const savedSession = localStorage.getItem('hustle_sim_current_session_slot');
+      if (savedSession) {
+        const id = parseInt(savedSession, 10);
+        if (id === 1 || id === 2 || id === 3) {
+          const meta = getAllSlotsMeta();
+          const target = meta.find((s) => s.slotId === id);
+          if (target && !target.isEmpty) {
+            return id as 1 | 2 | 3;
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  });
   const [slotsMeta, setSlotsMeta] = useState<SaveSlotMeta[]>(() => getAllSlotsMeta());
 
   const refreshSlotsMeta = useCallback(() => {
@@ -410,11 +436,93 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   });
   const [isStoreModalOpen, setIsStoreModalOpen] = useState<boolean>(false);
   const [isPhoneOpen, setIsPhoneOpen] = useState<boolean>(false);
-  const [phoneActiveApp, setPhoneActiveApp] = useState<'home' | 'stocks' | 'bank' | 'scanner' | 'auctions' | 'farbes' | 'vip' | 'jobs' | 'finance'>('home');
+  const [phoneActiveApp, setPhoneActiveApp] = useState<PhoneAppId>('home');
 
-  const openPhoneApp = useCallback((app: 'home' | 'stocks' | 'bank' | 'scanner' | 'auctions' | 'farbes' | 'vip' | 'jobs' | 'finance') => {
+  const openPhoneApp = useCallback((app: PhoneAppId) => {
     setPhoneActiveApp(app);
     setIsPhoneOpen(true);
+  }, []);
+
+  // In-game social media profile (TakTak & SGram)
+  const [socialProfile, setSocialProfile] = useState<SocialProfile>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_social');
+      return saved
+        ? JSON.parse(saved)
+        : {
+            taktakFollowers: 150,
+            taktakLikes: 580,
+            sgramFollowers: 420,
+            sgramPostsCount: 8,
+            isVerified: false,
+            unclaimedCreatorEarnings: 0,
+          };
+    } catch {
+      return {
+        taktakFollowers: 150,
+        taktakLikes: 580,
+        sgramFollowers: 420,
+        sgramPostsCount: 8,
+        isVerified: false,
+        unclaimedCreatorEarnings: 0,
+      };
+    }
+  });
+
+  const addSocialFollowers = useCallback((network: 'taktak' | 'sgram', followers: number, likes: number = 0) => {
+    setSocialProfile((prev) => {
+      const next = {
+        ...prev,
+        taktakFollowers: network === 'taktak' ? prev.taktakFollowers + followers : prev.taktakFollowers,
+        taktakLikes: network === 'taktak' ? prev.taktakLikes + likes : prev.taktakLikes,
+        sgramFollowers: network === 'sgram' ? prev.sgramFollowers + followers : prev.sgramFollowers,
+        sgramPostsCount: network === 'sgram' ? prev.sgramPostsCount + 1 : prev.sgramPostsCount,
+        isVerified: prev.isVerified || (prev.taktakFollowers + prev.sgramFollowers + followers > 50000),
+      };
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY + '_social', JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }, []);
+
+  const claimCreatorEarnings = useCallback(() => {
+    if (socialProfile.unclaimedCreatorEarnings <= 0) return false;
+    const amount = socialProfile.unclaimedCreatorEarnings;
+    setPlayer((prev) => ({ ...prev, cash: prev.cash + amount }));
+    setSocialProfile((prev) => {
+      const updated = { ...prev, unclaimedCreatorEarnings: 0 };
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY + '_social', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+    return true;
+  }, [socialProfile.unclaimedCreatorEarnings]);
+
+  const spendEnergy = useCallback((amount: number): boolean => {
+    let success = false;
+    setPlayer((prev) => {
+      if (prev.energy < amount) {
+        success = false;
+        return prev;
+      }
+      success = true;
+      return { ...prev, energy: Math.max(0, prev.energy - amount) };
+    });
+    return success;
+  }, []);
+
+  const earnCash = useCallback((amount: number, reason?: string) => {
+    setPlayer((prev) => ({
+      ...prev,
+      cash: prev.cash + amount,
+      annualIncomeEarned: (prev.annualIncomeEarned || 0) + amount,
+    }));
   }, []);
 
   const [taxRecords, setTaxRecords] = useState<TaxYearRecord[]>(() => {
@@ -2562,6 +2670,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const acRaw = localStorage.getItem(getSlotStorageKey(slotId, 'autocollect'));
       setAutoCollectRentUnlocked(acRaw === 'true');
 
+      localStorage.setItem('hustle_sim_current_session_slot', slotId.toString());
       setActiveSlotId(slotId);
       setRecentSlotId(slotId);
       setSlotsMeta(getAllSlotsMeta());
@@ -2571,6 +2680,15 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       triggerFeedback(`Failed to load Save Slot ${slotId}`, 'error');
     }
   }, [triggerFeedback]);
+
+  // Auto restore slot on initial mount if active session was saved
+  const initialSessionRestoredRef = React.useRef(false);
+  useEffect(() => {
+    if (activeSlotId && !initialSessionRestoredRef.current) {
+      initialSessionRestoredRef.current = true;
+      loadGameSlot(activeSlotId);
+    }
+  }, [activeSlotId, loadGameSlot]);
 
   // Start new game in selected slot
   const startNewGameInSlot = useCallback((
@@ -2729,6 +2847,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // ignore
     }
 
+    localStorage.setItem('hustle_sim_current_session_slot', slotId.toString());
     setActiveSlotId(slotId);
     setRecentSlotId(slotId);
 
@@ -2740,6 +2859,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const updated = deleteSlotData(slotId);
     setSlotsMeta(updated);
     if (activeSlotId === slotId) {
+      localStorage.removeItem('hustle_sim_current_session_slot');
       setActiveSlotId(null);
     }
     triggerFeedback(`🗑 Save Slot ${slotId} erased.`, 'info');
@@ -2836,6 +2956,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // ignore
       }
     }
+    localStorage.removeItem('hustle_sim_current_session_slot');
     setActiveSlotId(null);
     setSlotsMeta(getAllSlotsMeta());
   }, [
@@ -2970,6 +3091,12 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         phoneActiveApp,
         setPhoneActiveApp,
         openPhoneApp,
+
+        socialProfile,
+        addSocialFollowers,
+        claimCreatorEarnings,
+        spendEnergy,
+        earnCash,
 
         chooseEventOption,
         claimMissionReward,

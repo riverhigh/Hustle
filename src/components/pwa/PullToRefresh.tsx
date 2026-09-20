@@ -52,23 +52,19 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ children }) => {
 
       if (pullY >= PULL_THRESHOLD * 0.45 && !isRefreshing) {
         setIsRefreshing(true);
-        setStatusText('Checking for updates...');
+        setStatusText('Syncing progress & checking updates...');
         setPullY(50); // Keep indicator visible while checking
 
         try {
-          if (needRefresh) {
-            await updateApp();
-          } else {
-            const result = await checkForUpdates(true);
-            setStatusText(result.message);
-          }
+          const result = await checkForUpdates(false);
+          setStatusText(result.message || 'Game up to date');
         } catch {
-          window.location.reload();
+          setStatusText('Synced offline');
         } finally {
           setTimeout(() => {
             setIsRefreshing(false);
             setPullY(0);
-          }, 600);
+          }, 800);
         }
       } else {
         setPullY(0);

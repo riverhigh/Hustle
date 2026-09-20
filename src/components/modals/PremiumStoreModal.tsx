@@ -4,9 +4,9 @@ import {
   GEM_BUNDLES, 
   GEM_CASH_EXCHANGES, 
   GEM_PERKS, 
-  initiatePaystackCheckout, 
   GemBundle 
 } from '../../utils/paystack';
+import { PaystackCheckoutModal } from './PaystackCheckoutModal';
 import { formatCurrency } from '../../utils/formatters';
 import { 
   X, 
@@ -37,37 +37,15 @@ export const PremiumStoreModal: React.FC<PremiumStoreModalProps> = ({ isOpen, on
   } = useGame();
 
   const [activeTab, setActiveTab] = useState<'buy' | 'exchange' | 'perks'>('buy');
-  const [currency, setCurrency] = useState<'USD' | 'NGN'>('USD');
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [currency, setCurrency] = useState<'USD' | 'NGN'>('NGN');
+  const [selectedBundleForCheckout, setSelectedBundleForCheckout] = useState<GemBundle | null>(null);
   const [purchasedRef, setPurchasedRef] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const hasPaystackKey = Boolean(
-    (import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '').trim().startsWith('pk_')
-  );
-
-  const handleBuyBundle = async (bundle: GemBundle) => {
-    setIsProcessing(true);
+  const handleBuyBundle = (bundle: GemBundle) => {
     setPurchasedRef(null);
-
-    await initiatePaystackCheckout({
-      bundle,
-      currency,
-      customerEmail: 'printblue436@gmail.com',
-      onSuccess: (ref, totalGems) => {
-        setIsProcessing(false);
-        buyGemsWithPaystack(totalGems, ref);
-        setPurchasedRef(ref);
-      },
-      onClose: () => {
-        setIsProcessing(false);
-      },
-      onError: (err) => {
-        setIsProcessing(false);
-        console.error('Paystack error:', err);
-      },
-    });
+    setSelectedBundleForCheckout(bundle);
   };
 
   return (
@@ -185,17 +163,10 @@ export const PremiumStoreModal: React.FC<PremiumStoreModalProps> = ({ isOpen, on
                   </button>
                 </div>
 
-                {!hasPaystackKey ? (
-                  <span className="text-[11px] text-amber-400 bg-amber-950/40 border border-amber-800/60 px-2.5 py-1 rounded-lg font-medium flex items-center gap-1">
-                    <HelpCircle className="w-3 h-3" />
-                    <span>Sandbox Mode: Instant Delivery (Key Pending)</span>
-                  </span>
-                ) : (
-                  <span className="text-[11px] text-emerald-400 bg-emerald-950/40 border border-emerald-800/60 px-2.5 py-1 rounded-lg font-medium flex items-center gap-1">
-                    <ShieldCheck className="w-3 h-3" />
-                    <span>Paystack Live Merchant Ready</span>
-                  </span>
-                )}
+                <span className="text-[11px] text-emerald-400 bg-emerald-950/40 border border-emerald-800/60 px-2.5 py-1 rounded-lg font-medium flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3" />
+                  <span>Paystack Gateway Active (Encrypted)</span>
+                </span>
               </div>
 
               {purchasedRef && (
@@ -256,7 +227,6 @@ export const PremiumStoreModal: React.FC<PremiumStoreModalProps> = ({ isOpen, on
 
                       <button
                         onClick={() => handleBuyBundle(bundle)}
-                        disabled={isProcessing}
                         className={`w-full py-2.5 rounded-xl font-black text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-sm active:scale-95 ${
                           bundle.popular
                             ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
@@ -274,7 +244,7 @@ export const PremiumStoreModal: React.FC<PremiumStoreModalProps> = ({ isOpen, on
               <div className="p-3 bg-slate-950/60 border border-slate-800 rounded-2xl text-[11px] text-slate-400 flex items-start gap-2.5">
                 <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                 <p>
-                  Payments processed through Paystack Inline Checkout. You can configure your custom <code className="text-indigo-300">VITE_PAYSTACK_PUBLIC_KEY</code> in your environment settings anytime.
+                  Official Paystack payment gateway. Transactions are securely confirmed before gems are credited.
                 </p>
               </div>
             </div>
@@ -391,6 +361,18 @@ export const PremiumStoreModal: React.FC<PremiumStoreModalProps> = ({ isOpen, on
           )}
         </div>
       </div>
+
+      {/* Paystack Checkout & Real-Time Verification Modal */}
+      <PaystackCheckoutModal
+        isOpen={Boolean(selectedBundleForCheckout)}
+        onClose={() => setSelectedBundleForCheckout(null)}
+        bundle={selectedBundleForCheckout}
+        currency={currency}
+        onSuccess={(ref, gems) => {
+          buyGemsWithPaystack(gems, ref);
+          setPurchasedRef(ref);
+        }}
+      />
     </div>
   );
 };

@@ -361,3 +361,26 @@ export interface SaveSlotMeta {
   gems: number;
   lastSaved: number; // timestamp
 }
+
+export type PhoneAppId = 
+  | 'home' 
+  | 'stocks' 
+  | 'bank' 
+  | 'scanner' 
+  | 'auctions' 
+  | 'farbes' 
+  | 'vip' 
+  | 'jobs' 
+  | 'finance'
+  | 'taktak'
+  | 'sgram'
+  | 'news';
+
+export interface SocialProfile {
+  taktakFollowers: number;
+  taktakLikes: number;
+  sgramFollowers: number;
+  sgramPostsCount: number;
+  isVerified: boolean;
+  unclaimedCreatorEarnings: number;
+}

@@ -1,18 +1,12 @@
 /**
  * Paystack Payment & Premium Gem Store Integration
+ * Fully verified via backend server (/api/paystack/initialize and /api/paystack/verify)
  */
 
-export interface GemBundle {
-  id: string;
-  name: string;
-  gems: number;
-  bonusGems: number;
-  priceUSD: number;
-  priceNGN: number;
-  badge?: string;
-  description: string;
-  popular?: boolean;
-}
+import { GEM_BUNDLES, GemBundle } from '../constants/gemBundles';
+
+export { GEM_BUNDLES };
+export type { GemBundle };
 
 export interface GemCashExchangeOption {
   id: string;
@@ -31,49 +25,6 @@ export interface GemPerkOption {
   iconName: 'zap' | 'credit' | 'crown';
   badge?: string;
 }
-
-export const GEM_BUNDLES: GemBundle[] = [
-  {
-    id: 'bundle_starter',
-    name: 'Starter Gem Pouch',
-    gems: 50,
-    bonusGems: 0,
-    priceUSD: 1.99,
-    priceNGN: 2500,
-    description: 'Perfect kickstart for instant cash exchange or energy top-up.',
-  },
-  {
-    id: 'bundle_hustler',
-    name: "Hustler's Gem Stash",
-    gems: 160,
-    bonusGems: 20,
-    priceUSD: 4.99,
-    priceNGN: 6500,
-    badge: 'MOST POPULAR',
-    popular: true,
-    description: 'The community favorite! Ideal for financing down payments and credit repair.',
-  },
-  {
-    id: 'bundle_tycoon',
-    name: 'Tycoon Gem Vault',
-    gems: 550,
-    bonusGems: 100,
-    priceUSD: 14.99,
-    priceNGN: 19500,
-    badge: 'BEST VALUE',
-    description: 'Serious liquidity for property auctions and commercial vehicle fleet expansions.',
-  },
-  {
-    id: 'bundle_empire',
-    name: 'Empire Sovereign Treasury',
-    gems: 1800,
-    bonusGems: 500,
-    priceUSD: 39.99,
-    priceNGN: 52000,
-    badge: 'VIP STATUS',
-    description: 'Massive gem reserves to dominate real estate and venture holdings.',
-  },
-];
 
 export const GEM_CASH_EXCHANGES: GemCashExchangeOption[] = [
   {
@@ -143,7 +94,7 @@ export const GEM_PERKS: GemPerkOption[] = [
 ];
 
 /**
- * Loads Paystack Inline script if not already present
+ * Loads Paystack Inline script (V2 preferred, V1 fallback)
  */
 export const loadPaystackScript = (): Promise<boolean> => {
   return new Promise((resolve) => {
@@ -153,94 +104,198 @@ export const loadPaystackScript = (): Promise<boolean> => {
     }
 
     const script = document.createElement('script');
-    script.src = 'https://js.paystack.co/v1/inline.js';
+    script.src = 'https://js.paystack.co/v2/inline.js';
     script.async = true;
     script.onload = () => resolve(true);
     script.onerror = () => {
-      console.warn('Paystack inline script could not be loaded from CDN');
-      resolve(false);
+      // Try fallback to v1
+      const fallbackScript = document.createElement('script');
+      fallbackScript.src = 'https://js.paystack.co/v1/inline.js';
+      fallbackScript.async = true;
+      fallbackScript.onload = () => resolve(true);
+      fallbackScript.onerror = () => {
+        console.warn('Paystack inline script could not be loaded from CDN');
+        resolve(false);
+      };
+      document.body.appendChild(fallbackScript);
     };
     document.body.appendChild(script);
   });
 };
 
+export interface InitializePaymentResponse {
+  success: boolean;
+  authorizationUrl?: string;
+  accessCode?: string;
+  reference?: string;
+  totalGems?: number;
+  bundle?: GemBundle;
+  error?: string;
+}
+
+export interface VerifyPaymentResponse {
+  success: boolean;
+  status?: string;
+  reference?: string;
+  totalGems?: number;
+  bundleName?: string;
+  amount?: number;
+  currency?: string;
+  paidAt?: string;
+  error?: string;
+  alreadyRedeemed?: boolean;
+}
+
+/**
+ * Initializes a transaction securely via backend with Paystack API
+ */
+export const initializePaystackTransaction = async (
+  bundle: GemBundle,
+  currency: 'USD' | 'NGN' = 'NGN',
+  customerEmail: string = 'printblue436@gmail.com'
+): Promise<InitializePaymentResponse> => {
+  try {
+    const res = await fetch('/api/paystack/initialize', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        bundleId: bundle.id,
+        currency,
+        email: customerEmail || 'printblue436@gmail.com',
+      }),
+    });
+
+    const data = await res.json();
+    return data;
+  } catch (error: any) {
+    console.error('Network error initializing Paystack:', error);
+    return {
+      success: false,
+      error: error?.message || 'Could not connect to payment server.',
+    };
+  }
+};
+
+/**
+ * Verifies transaction with Paystack via server-side verification endpoint
+ */
+export const verifyPaystackPayment = async (reference: string): Promise<VerifyPaymentResponse> => {
+  try {
+    const res = await fetch('/api/paystack/verify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ reference: reference.trim() }),
+    });
+
+    const data = await res.json();
+    return data;
+  } catch (error: any) {
+    console.error('Network error verifying Paystack payment:', error);
+    return {
+      success: false,
+      error: error?.message || 'Could not connect to payment server for verification.',
+    };
+  }
+};
+
 export interface PaystackCheckoutParams {
   bundle: GemBundle;
   currency: 'USD' | 'NGN';
-  customerEmail: string;
+  customerEmail?: string;
   onSuccess: (reference: string, totalGems: number) => void;
   onClose?: () => void;
   onError?: (err: any) => void;
 }
 
 /**
- * Initiates Paystack Inline checkout with configured key, or gracefully runs
- * simulation mode if the key has not yet been set in .env
+ * Initiates Paystack checkout and confirms transaction verification before granting gems
  */
 export const initiatePaystackCheckout = async ({
   bundle,
   currency,
-  customerEmail,
+  customerEmail = 'printblue436@gmail.com',
   onSuccess,
   onClose,
   onError,
 }: PaystackCheckoutParams) => {
-  const publicKey = (import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '').trim();
-  const totalGems = bundle.gems + bundle.bonusGems;
-  const isKeyConfigured = publicKey.length > 5 && publicKey.startsWith('pk_');
+  // Step 1: Initialize transaction on backend with secret key
+  const initResult = await initializePaystackTransaction(bundle, currency, customerEmail);
 
-  // Amount in kobo/cents for Paystack
-  const amount = currency === 'NGN' ? bundle.priceNGN * 100 : Math.round(bundle.priceUSD * 100);
+  if (!initResult.success || !initResult.accessCode || !initResult.authorizationUrl) {
+    const errorMsg = initResult.error || 'Failed to initialize Paystack payment.';
+    if (onError) onError(new Error(errorMsg));
+    return;
+  }
 
-  if (isKeyConfigured) {
-    const isScriptReady = await loadPaystackScript();
-    const PaystackPop = (window as any)?.PaystackPop;
+  const { accessCode, authorizationUrl, reference, totalGems = bundle.gems + bundle.bonusGems } = initResult;
 
-    if (isScriptReady && PaystackPop && typeof PaystackPop.setup === 'function') {
-      try {
+  // Step 2: Try Paystack Inline Popup if supported
+  await loadPaystackScript();
+  const PaystackPop = (window as any)?.PaystackPop;
+
+  // Verify function helper
+  const verifyAndDeliver = async (refToVerify: string) => {
+    const verifyRes = await verifyPaystackPayment(refToVerify);
+    if (verifyRes.success && verifyRes.status === 'success') {
+      const deliveredGems = verifyRes.totalGems || totalGems;
+      onSuccess(refToVerify, deliveredGems);
+      return true;
+    } else {
+      if (onError) onError(new Error(verifyRes.error || 'Payment was not confirmed by Paystack.'));
+      return false;
+    }
+  };
+
+  let popupLaunched = false;
+
+  if (PaystackPop) {
+    try {
+      // Paystack V2 inline API: resumeTransaction(access_code)
+      if (typeof PaystackPop === 'function') {
+        const popup = new PaystackPop();
+        if (typeof popup.resumeTransaction === 'function') {
+          popup.resumeTransaction(accessCode, {
+            onSuccess: async (transaction: any) => {
+              const ref = transaction?.reference || reference!;
+              await verifyAndDeliver(ref);
+            },
+            onCancel: () => {
+              if (onClose) onClose();
+            },
+          });
+          popupLaunched = true;
+        }
+      }
+
+      // Paystack V1 inline API: PaystackPop.setup
+      if (!popupLaunched && typeof PaystackPop.setup === 'function') {
+        const publicKey = (import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '').trim();
         const handler = PaystackPop.setup({
-          key: publicKey,
-          email: customerEmail || 'player@hustlesim.app',
-          amount,
-          currency: currency === 'NGN' ? 'NGN' : 'USD',
-          ref: 'gem_' + Date.now() + '_' + Math.floor(Math.random() * 1000000),
-          metadata: {
-            custom_fields: [
-              {
-                display_name: 'Bundle',
-                variable_name: 'bundle_name',
-                value: bundle.name,
-              },
-              {
-                display_name: 'Gems Delivered',
-                variable_name: 'gems_delivered',
-                value: totalGems,
-              },
-            ],
-          },
-          callback: (response: { reference: string }) => {
-            onSuccess(response.reference, totalGems);
+          key: publicKey.startsWith('pk_') ? publicKey : undefined,
+          access_code: accessCode,
+          ref: reference,
+          callback: async (response: { reference: string }) => {
+            const ref = response.reference || reference!;
+            await verifyAndDeliver(ref);
           },
           onClose: () => {
             if (onClose) onClose();
           },
         });
-
         handler.openIframe();
-        return;
-      } catch (err) {
-        console.error('Error opening Paystack iframe:', err);
-        if (onError) onError(err);
+        popupLaunched = true;
       }
+    } catch (popupErr) {
+      console.warn('Paystack inline popup could not be initialized directly, falling back to window/modal:', popupErr);
     }
   }
 
-  // Graceful Sandbox / Test Mode (User stated: "I'll send my paystack key later")
-  // Provide seamless testing flow so gems can be acquired and tested right now!
-  const mockRef = 'pstk_test_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
-  
-  // Simulated brief verification delay
-  setTimeout(() => {
-    onSuccess(mockRef, totalGems);
-  }, 400);
+  // If popup could not launch, open checkout URL in a popup window or tab
+  if (!popupLaunched && authorizationUrl) {
+    window.open(authorizationUrl, '_blank', 'width=500,height=700');
+  }
 };
