@@ -167,7 +167,16 @@ export const initializePaystackTransaction = async (
       }),
     });
 
-    const data = await res.json();
+    const raw = await res.text();
+    let data: any = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      return {
+        success: false,
+        error: 'Payment server returned an invalid response. Please try again.',
+      };
+    }
     return data;
   } catch (error: any) {
     console.error('Network error initializing Paystack:', error);
@@ -191,7 +200,16 @@ export const verifyPaystackPayment = async (reference: string): Promise<VerifyPa
       body: JSON.stringify({ reference: reference.trim() }),
     });
 
-    const data = await res.json();
+    const raw = await res.text();
+    let data: any = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      return {
+        success: false,
+        error: 'Verification server returned an unreadable response. Please check reference manually.',
+      };
+    }
     return data;
   } catch (error: any) {
     console.error('Network error verifying Paystack payment:', error);

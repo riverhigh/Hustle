@@ -24,6 +24,7 @@ import {
   TaxYearRecord,
   PhoneAppId,
   SocialProfile,
+  DailySummaryReport,
 } from '../types/game';
 import { LUXURY_ITEMS } from '../constants/luxuryItems';
 import {
@@ -49,6 +50,7 @@ import {
   getRecentSlotId,
   setRecentSlotId,
 } from '../utils/saveSlots';
+import { getDayName } from '../utils/formatters';
 
 interface GameContextType {
   player: PlayerProfile;
@@ -101,8 +103,8 @@ interface GameContextType {
   
   // Banking & Debt
   openBankAccount: () => boolean;
-  depositBank: (accountId: 'checking' | 'savings' | 'emergency', amount: number) => boolean;
-  withdrawBank: (accountId: 'checking' | 'savings' | 'emergency', amount: number) => boolean;
+  depositBank: (accountId: 'checking' | 'savings', amount: number) => boolean;
+  withdrawBank: (accountId: 'checking' | 'savings', amount: number) => boolean;
   payCreditCard: (cardId: string, amount: number) => boolean;
   applyCreditCard: (tier: number) => boolean;
   takeLoan: (type: 'personal' | 'business' | 'mortgage', amount: number, termMonths: number) => boolean;
@@ -180,6 +182,12 @@ interface GameContextType {
   setTutorialStep: (step: number) => void;
   resetGame: () => void;
   triggerFeedback: (text: string, type?: 'success' | 'warning' | 'info' | 'error', details?: string[]) => void;
+
+  // Day Simulation & Daily Summary
+  dailySummary: DailySummaryReport | null;
+  isDailySummaryOpen: boolean;
+  setIsDailySummaryOpen: (open: boolean) => void;
+  simulateNextDay: () => void;
 }
 
 const LOCAL_STORAGE_KEY = 'hustle_empire_sim_state_v1';
@@ -218,18 +226,19 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_bank');
-      return saved
-        ? JSON.parse(saved)
-        : [
-            { id: 'checking', name: 'Standard Checking', balance: 0, interestRate: 0.001 },
-            { id: 'savings', name: 'High-Yield Savings (HYSA)', balance: 0, interestRate: 0.045 },
-            { id: 'emergency', name: 'Emergency Reserve', balance: 0, interestRate: 0.035 },
-          ];
+      if (saved) {
+        const parsed: any[] = JSON.parse(saved);
+        const filtered = parsed.filter((a) => a.id === 'checking' || a.id === 'savings');
+        if (filtered.length >= 2) return filtered;
+      }
+      return [
+        { id: 'checking', name: 'Standard Checking', balance: 0, interestRate: 0.001 },
+        { id: 'savings', name: 'High-Yield Savings (HYSA)', balance: 0, interestRate: 0.045 },
+      ];
     } catch {
       return [
         { id: 'checking', name: 'Standard Checking', balance: 0, interestRate: 0.001 },
         { id: 'savings', name: 'High-Yield Savings (HYSA)', balance: 0, interestRate: 0.045 },
-        { id: 'emergency', name: 'Emergency Reserve', balance: 0, interestRate: 0.035 },
       ];
     }
   });
@@ -436,6 +445,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return localStorage.getItem(LOCAL_STORAGE_KEY + '_autocollect') === 'true';
   });
   const [isStoreModalOpen, setIsStoreModalOpen] = useState<boolean>(false);
+  const [dailySummary, setDailySummary] = useState<DailySummaryReport | null>(null);
+  const [isDailySummaryOpen, setIsDailySummaryOpen] = useState<boolean>(false);
   const [isPhoneOpen, setIsPhoneOpen] = useState<boolean>(false);
   const [phoneActiveApp, setPhoneActiveApp] = useState<PhoneAppId>('home');
 
@@ -444,26 +455,39 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsPhoneOpen(true);
   }, []);
 
-  // In-game social media profile (TakTak & SGram)
+  // In-game social media profile (TakTak & SGram) - starts from 0 followers & 0 likes
   const [socialProfile, setSocialProfile] = useState<SocialProfile>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_social');
-      return saved
-        ? JSON.parse(saved)
-        : {
-            taktakFollowers: 150,
-            taktakLikes: 580,
-            sgramFollowers: 420,
-            sgramPostsCount: 8,
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // If it was the legacy initial template with 150/420, reset to 0
+        if (parsed.taktakFollowers === 150 && parsed.sgramFollowers === 420) {
+          return {
+            taktakFollowers: 0,
+            taktakLikes: 0,
+            sgramFollowers: 0,
+            sgramPostsCount: 0,
             isVerified: false,
             unclaimedCreatorEarnings: 0,
           };
+        }
+        return parsed;
+      }
+      return {
+        taktakFollowers: 0,
+        taktakLikes: 0,
+        sgramFollowers: 0,
+        sgramPostsCount: 0,
+        isVerified: false,
+        unclaimedCreatorEarnings: 0,
+      };
     } catch {
       return {
-        taktakFollowers: 150,
-        taktakLikes: 580,
-        sgramFollowers: 420,
-        sgramPostsCount: 8,
+        taktakFollowers: 0,
+        taktakLikes: 0,
+        sgramFollowers: 0,
+        sgramPostsCount: 0,
         isVerified: false,
         unclaimedCreatorEarnings: 0,
       };
@@ -1295,23 +1319,104 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     triggerFeedback('Took a quick power nap', 'info', [`⚡ +${energyGain} Energy recovered`, 'Time: 1h 30m']);
   };
 
-  // Full Sleep
-  const sleep = () => {
-    const currentHousing = HOUSING_TIERS.find((h) => h.tier === player.housingTier)!;
-    const energyRecovered = currentHousing.energyRestBonus;
+  // Simulate Day & Daily Summary Modal matching Tycoon Simulation
+  const simulateNextDay = useCallback(() => {
+    const startingCash = player.cash;
+    const currentHousing = HOUSING_TIERS.find((h) => h.tier === player.housingTier) || HOUSING_TIERS[0];
+    const currentTrans = TRANSPORTATION_TIERS.find((t) => t.tier === player.transportationTier) || TRANSPORTATION_TIERS[0];
 
+    // Business revenue & expenses
+    let bizRev = 0;
+    let bizWages = 0;
+    let bizRent = 0;
+    let bizMarketing = 0;
+    ownedBusinesses.forEach((b) => {
+      const dailyRev = Math.round((b.revenueMonthly / 30) * (0.85 + Math.random() * 0.3));
+      bizRev += dailyRev;
+      const employeePayroll = (b.employees || []).reduce((acc, emp) => acc + (emp.salaryMonthly || 0), 0);
+      bizWages += Math.round(employeePayroll / 30);
+      bizRent += Math.round((b.expensesMonthly * 0.4) / 30);
+      bizMarketing += Math.round((b.marketingBudgetMonthly || (b.expensesMonthly * 0.2)) / 30);
+    });
+
+    // Property rental income
+    let propRent = 0;
+    ownedProperties.forEach((p) => {
+      if (p.tenant) {
+        propRent += Math.round(p.tenant.agreedRent / 30);
+      }
+    });
+
+    // Salaried Job (if employed)
+    let jobIncome = 0;
+    const activeJob = availableJobs.find((j) => j.id === player.activeWeeklyJobId);
+    if (activeJob && activeJob.weeklySalary) {
+      jobIncome = Math.round(activeJob.weeklySalary / 7);
+    }
+
+    // Baseline daily earnings for early game progression
+    if (bizRev === 0 && propRent === 0 && jobIncome === 0) {
+      jobIncome = Math.round(110 + Math.random() * 75);
+    }
+
+    const totalRevenue = bizRev + propRent + jobIncome;
+    const employeeWages = bizWages;
+    const buildingRent = Math.max(10, Math.round(currentHousing.costMonthly / 30));
+    const marketing = bizMarketing;
+    const hqRent = bizRent;
+    const vehicleMaintenance = currentTrans.cost > 0 ? Math.round(15 + currentTrans.tier * 12) : 0;
+
+    const totalExpenses = employeeWages + buildingRent + marketing + hqRent + vehicleMaintenance;
+    const netProfit = totalRevenue - totalExpenses;
+    const cashChange = netProfit;
+    const endingCash = Math.max(0, startingCash + cashChange);
+
+    const revenueDetails = [
+      ...(bizRev > 0 ? [{ label: 'Enterprise Commercial Revenue', amount: bizRev }] : []),
+      ...(propRent > 0 ? [{ label: 'Real Estate Tenant Leases', amount: propRent }] : []),
+      ...(jobIncome > 0 ? [{ label: 'Salaried Career & Hustle', amount: jobIncome }] : []),
+    ];
+
+    const nextDayNumber = player.daysPlayed + 1;
+    const nextDayName = getDayName(player.dayOfWeek + 1);
+
+    const summaryReport: DailySummaryReport = {
+      day: nextDayNumber,
+      dayName: nextDayName,
+      revenue: totalRevenue,
+      revenueDetails: revenueDetails.length > 0 ? revenueDetails : [{ label: 'Primary Hustle Earnings', amount: totalRevenue }],
+      employeeWages,
+      buildingRent,
+      marketing,
+      hqRent,
+      vehicleMaintenance,
+      netProfit,
+      startingCash,
+      cashChange,
+      endingCash,
+      bonusPercent: 20,
+    };
+
+    setDailySummary(summaryReport);
+    setIsDailySummaryOpen(true);
+
+    const energyRecovered = currentHousing.energyRestBonus;
     setPlayer((prev) => ({
       ...prev,
       energy: Math.min(prev.maxEnergy, energyRecovered),
     }));
 
-    triggerFeedback('Full Night Rest', 'info', [
-      `Woke up at 7:00 AM`,
+    triggerFeedback('Simulated Next Day', 'info', [
+      `Woke up at 7:00 AM • Day ${nextDayNumber}`,
       `⚡ Energy restored to ${Math.min(player.maxEnergy, energyRecovered)}`,
-      `Day ${player.daysPlayed + 1} begins`,
     ]);
 
     triggerNewDayCycle();
+  }, [player, ownedBusinesses, ownedProperties, availableJobs, triggerNewDayCycle, triggerFeedback]);
+
+  // Full Sleep - forwards to simulateNextDay
+  const sleep = () => {
+    simulateNextDay();
   };
 
   // Upgrade Housing
@@ -1440,7 +1545,43 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // Bank actions
-  const depositBank = (accountId: 'checking' | 'savings' | 'emergency', amount: number): boolean => {
+  const openBankAccount = (): boolean => {
+    if (player.hasBankAccount) {
+      triggerFeedback('You already have an active bank account!', 'info');
+      return true;
+    }
+
+    if (player.cash < 500) {
+      triggerFeedback('Insufficient cash to open bank account!', 'warning', [
+        `Required Opening Fee: $500`,
+        `Current Cash: $${player.cash.toLocaleString()}`,
+        `You need $${(500 - player.cash).toLocaleString()} more to open an account.`,
+      ]);
+      return false;
+    }
+
+    setPlayer((prev) => ({
+      ...prev,
+      cash: prev.cash - 500,
+      hasBankAccount: true,
+    }));
+
+    addPlayerXP(100);
+    triggerFeedback('🏦 Vance Mobile Bank Account Opened!', 'success', [
+      'Paid $500 one-time account opening fee.',
+      'Checking and Savings accounts are now fully active!',
+      'Earn 4.5% APY on High-Yield Savings deposits.',
+      '+100 Player XP gained!',
+    ]);
+    return true;
+  };
+
+  const depositBank = (accountId: 'checking' | 'savings', amount: number): boolean => {
+    if (!player.hasBankAccount) {
+      triggerFeedback('Account required! Pay $500 to open your bank account first.', 'warning');
+      return false;
+    }
+
     if (amount <= 0 || player.cash < amount) {
       triggerFeedback('Insufficient cash to deposit!', 'warning');
       return false;
@@ -1455,7 +1596,12 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return true;
   };
 
-  const withdrawBank = (accountId: 'checking' | 'savings' | 'emergency', amount: number): boolean => {
+  const withdrawBank = (accountId: 'checking' | 'savings', amount: number): boolean => {
+    if (!player.hasBankAccount) {
+      triggerFeedback('You do not have an active bank account!', 'warning');
+      return false;
+    }
+
     const acc = bankAccounts.find((a) => a.id === accountId);
     if (!acc || acc.balance < amount) {
       triggerFeedback('Insufficient balance in bank account!', 'warning');
@@ -2711,7 +2857,6 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const initialBank: BankAccount[] = [
       { id: 'checking', name: 'Standard Checking', balance: 0, interestRate: 0.001 },
       { id: 'savings', name: 'High-Yield Savings (HYSA)', balance: 0, interestRate: 0.045 },
-      { id: 'emergency', name: 'Emergency Reserve', balance: 0, interestRate: 0.035 },
     ];
 
     const initialCards: CreditCard[] = [
@@ -3036,6 +3181,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         buyTransportation,
         financeVehicle,
 
+        openBankAccount,
         depositBank,
         withdrawBank,
         payCreditCard,
@@ -3106,6 +3252,11 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setTutorialStep,
         resetGame,
         triggerFeedback,
+
+        dailySummary,
+        isDailySummaryOpen,
+        setIsDailySummaryOpen,
+        simulateNextDay,
       }}
     >
       {children}

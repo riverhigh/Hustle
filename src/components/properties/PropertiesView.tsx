@@ -13,15 +13,12 @@ import {
   Heart, 
   X, 
   Check, 
-  Gavel, 
   Users, 
   ShieldCheck, 
   AlertTriangle,
   Bookmark,
   Sparkles,
-  ArrowRight,
-  Radio,
-  Smartphone
+  ArrowRight
 } from 'lucide-react';
 
 export const PropertiesView: React.FC = () => {
@@ -37,7 +34,6 @@ export const PropertiesView: React.FC = () => {
     toggleWatchlistProperty,
     autoCollectRentUnlocked,
     unlockAutoCollectManager,
-    openPhoneApp,
   } = useGame();
 
   const [activeTab, setActiveTab] = useState<'portfolio' | 'mls'>('portfolio');
@@ -92,38 +88,6 @@ export const PropertiesView: React.FC = () => {
           <Search className="w-4 h-4" />
           <span>MLS Market Listings ({marketProperties.length})</span>
         </button>
-      </div>
-
-      {/* Phone Exclusives Banner */}
-      <div className="bg-gradient-to-r from-cyan-950/70 via-slate-900 to-amber-950/50 border border-cyan-700/40 rounded-2xl p-3 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
-            <Smartphone className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-100">DealRadar Scanner & Foreclosure Auctions</span>
-              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-cyan-900/80 text-cyan-300 border border-cyan-600">PHONE APP ONLY</span>
-            </div>
-            <p className="text-[11px] text-slate-400">Off-market arbitrage and fast-paced foreclosure auctions are now exclusive to your mobile phone apps!</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-          <button
-            onClick={() => openPhoneApp('scanner')}
-            className="flex-1 sm:flex-initial px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition active:scale-95"
-          >
-            <Radio className="w-3.5 h-3.5" />
-            <span>Open Scanner</span>
-          </button>
-          <button
-            onClick={() => openPhoneApp('auctions')}
-            className="flex-1 sm:flex-initial px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-slate-950 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition active:scale-95"
-          >
-            <Gavel className="w-3.5 h-3.5" />
-            <span>Open Auctions</span>
-          </button>
-        </div>
       </div>
 
       {/* PORTFOLIO TAB */}

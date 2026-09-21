@@ -78,7 +78,7 @@ export interface TaxYearRecord {
 }
 
 export interface BankAccount {
-  id: 'checking' | 'savings' | 'emergency';
+  id: 'checking' | 'savings';
   name: string;
   balance: number;
   interestRate: number; // Annual percentage yield e.g. 0.045
@@ -384,4 +384,21 @@ export interface SocialProfile {
   sgramPostsCount: number;
   isVerified: boolean;
   unclaimedCreatorEarnings: number;
+}
+
+export interface DailySummaryReport {
+  day: number;
+  dayName: string;
+  revenue: number;
+  revenueDetails: { label: string; amount: number }[];
+  employeeWages: number;
+  buildingRent: number;
+  marketing: number;
+  hqRent: number;
+  vehicleMaintenance: number;
+  netProfit: number;
+  startingCash: number;
+  cashChange: number;
+  endingCash: number;
+  bonusPercent?: number;
 }

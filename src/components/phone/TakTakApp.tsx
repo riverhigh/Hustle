@@ -149,34 +149,56 @@ export const TakTakApp: React.FC = () => {
 
   // Post Creator Video
   const handleCreateVideo = (type: 'motivation' | 'flex' | 'business') => {
-    if (player.energy < 15) {
-      alert("Not enough energy! You need at least 15⚡ to record and edit a video.");
+    if (player.energy < 20) {
+      alert("Not enough energy! You need at least 20⚡ to record and edit a video.");
       return;
     }
 
-    spendEnergy(15);
-    let gainedFollowers = 0;
-    let gainedLikes = 0;
+    spendEnergy(20);
     let captionText = '';
 
     if (type === 'motivation') {
-      gainedFollowers = Math.floor(Math.random() * 800) + 400;
-      gainedLikes = gainedFollowers * (Math.floor(Math.random() * 4) + 2);
-      captionText = `Stop making excuses! Worked a 14-hour grind shift today. Keep grinding 💪✨`;
+      captionText = `Stop making excuses! Worked a grind shift today. Every small step counts 💪✨`;
     } else if (type === 'flex') {
       const vehicleName = currentTransport?.name || 'Standard Ride';
       const housingName = currentHousing?.name || 'My Apartment';
-      gainedFollowers = Math.floor(Math.random() * 2500) + 1200;
-      gainedLikes = gainedFollowers * (Math.floor(Math.random() * 5) + 3);
-      captionText = `Showing off the ${vehicleName} outside my ${housingName}! Hard work pays off 🔑🍾`;
+      captionText = `Showing off the ${vehicleName} outside my ${housingName}! Brick by brick 🔑🍾`;
     } else {
       const bizName = ownedBusinesses[0]?.name || 'My Venture LLC';
-      gainedFollowers = Math.floor(Math.random() * 1500) + 700;
-      gainedLikes = gainedFollowers * 3;
       captionText = `Behind the scenes operating ${bizName}! Building an empire one customer at a time 📈🏭`;
     }
 
-    addSocialFollowers('taktak', gainedFollowers, gainedLikes);
+    // Algorithmic luck roll (does NOT guarantee followers - authentic slow climb):
+    // 50% chance: Algorithm flop (0 followers, 1-4 likes)
+    // 32% chance: Small trickle (+1 to +3 followers)
+    // 14% chance: Decent traction (+4 to +8 followers)
+    // 4% chance: Lucky breakout (+10 to +20 followers)
+    const roll = Math.random();
+    let gainedFollowers = 0;
+    let gainedLikes = 0;
+    let luckMessage = '';
+
+    if (roll < 0.50) {
+      gainedFollowers = 0;
+      gainedLikes = Math.floor(Math.random() * 4) + 1;
+      luckMessage = "The algorithm didn't pick up your video. Gained 0 followers and a couple of likes. The grind continues!";
+    } else if (roll < 0.82) {
+      gainedFollowers = Math.floor(Math.random() * 3) + 1; // 1 to 3
+      gainedLikes = gainedFollowers * (Math.floor(Math.random() * 4) + 3) + 4;
+      luckMessage = `A few local users found your clip! Gained +${gainedFollowers} follower${gainedFollowers > 1 ? 's' : ''} and ${gainedLikes} likes.`;
+    } else if (roll < 0.96) {
+      gainedFollowers = Math.floor(Math.random() * 5) + 4; // 4 to 8
+      gainedLikes = gainedFollowers * (Math.floor(Math.random() * 4) + 4) + 10;
+      luckMessage = `Good engagement on the For You page! Gained +${gainedFollowers} followers and ${gainedLikes} likes.`;
+    } else {
+      gainedFollowers = Math.floor(Math.random() * 11) + 10; // 10 to 20
+      gainedLikes = gainedFollowers * 6 + 25;
+      luckMessage = `🔥 Lucky algorithm spark! Your video resonated: +${gainedFollowers} followers and ${gainedLikes} likes!`;
+    }
+
+    if (gainedFollowers > 0 || gainedLikes > 0) {
+      addSocialFollowers('taktak', gainedFollowers, gainedLikes);
+    }
 
     const newVideo: TakTakVideo = {
       id: `my-vid-${Date.now()}`,
@@ -184,10 +206,10 @@ export const TakTakApp: React.FC = () => {
       handle: `@${player.name.toLowerCase().replace(/\s+/g, '_')}`,
       avatarBg: 'bg-gradient-to-r from-pink-500 to-indigo-600',
       caption: captionText,
-      musicTrack: 'Original Viral Sound • ' + player.name,
+      musicTrack: 'Original Sound • ' + player.name,
       likes: gainedLikes,
-      comments: Math.floor(gainedLikes * 0.08),
-      shares: Math.floor(gainedLikes * 0.15),
+      comments: Math.max(0, Math.floor(gainedLikes * 0.1)),
+      shares: Math.max(0, Math.floor(gainedLikes * 0.05)),
       bgGradient: 'from-purple-950 via-slate-900 to-indigo-950',
       tag: '#MyEmpire'
     };
@@ -195,22 +217,28 @@ export const TakTakApp: React.FC = () => {
     setFeed((prev) => [newVideo, ...prev]);
     setCurrentVideoIndex(0);
     setActiveTab('feed');
+    alert(luckMessage);
   };
 
   // Start simulated LIVE stream
   const handleStartLive = () => {
-    if (player.energy < 20) {
-      alert("You need at least 20⚡ energy to host a live stream!");
+    if (player.energy < 25) {
+      alert("You need at least 25⚡ energy to host a live stream!");
       return;
     }
-    spendEnergy(20);
+    spendEnergy(25);
     setIsLiveStreaming(true);
-    setLiveViewers(Math.max(45, Math.floor(socialProfile.taktakFollowers * 0.15) + 35));
+    // Viewers scale strictly with actual followers (0 followers = 0-1 viewer max)
+    const baseViewers = socialProfile.taktakFollowers > 0
+      ? Math.max(0, Math.floor(socialProfile.taktakFollowers * 0.03) + (Math.random() < 0.4 ? 1 : 0))
+      : (Math.random() < 0.2 ? 1 : 0);
+    setLiveViewers(baseViewers);
     setLiveDonations(0);
-    setLiveChatMessages([
-      { user: 'HustleFan_22', text: 'LETS GOOO! You are live!' },
-      { user: 'Sarah_NYC', text: 'Love the stream bro!' }
-    ]);
+    setLiveChatMessages(
+      baseViewers > 0
+        ? [{ user: 'Viewer_99', text: 'Hey, you are live!' }]
+        : [{ user: 'System', text: 'Waiting for viewers to join your stream...' }]
+    );
   };
 
   // Simulated live chat & tips
@@ -251,10 +279,12 @@ export const TakTakApp: React.FC = () => {
 
   const handleEndLive = () => {
     setIsLiveStreaming(false);
-    if (liveDonations > 0) {
-      // Award donations to player
-      addSocialFollowers('taktak', Math.floor(liveViewers * 1.5), Math.floor(liveViewers * 4));
-      alert(`Livestream ended! You earned ${formatCurrency(liveDonations)} in SuperChat donations and gained +${Math.floor(liveViewers * 1.5)} followers!`);
+    const liveFollowerGain = liveViewers > 2 ? Math.min(3, Math.floor(liveViewers * 0.1) + 1) : (Math.random() < 0.25 ? 1 : 0);
+    if (liveDonations > 0 || liveFollowerGain > 0) {
+      addSocialFollowers('taktak', liveFollowerGain, Math.floor(liveViewers * 2));
+      alert(`Livestream ended! You earned ${formatCurrency(liveDonations)} in SuperChat donations and gained +${liveFollowerGain} follower${liveFollowerGain === 1 ? '' : 's'}.`);
+    } else {
+      alert("Livestream ended. Broadcaster signed off.");
     }
   };
 

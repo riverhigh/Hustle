@@ -27,7 +27,9 @@ import {
   Landmark,
   Calendar,
   X,
-  Smartphone
+  Banknote,
+  Newspaper,
+  ArrowRight
 } from 'lucide-react';
 
 export const HustleView: React.FC = () => {
@@ -48,8 +50,12 @@ export const HustleView: React.FC = () => {
     boostBusinessMarketing, 
     upgradeBusinessOffice, 
     adjustBusinessPricing,
+    netWorth,
+    newsFeed,
     openPhoneApp
   } = useGame();
+
+  const latestNews = newsFeed && newsFeed.length > 0 ? newsFeed[0] : null;
 
   const [activeSection, setActiveSection] = useState<'businesses' | 'education' | 'gigs'>('businesses');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -90,37 +96,97 @@ export const HustleView: React.FC = () => {
 
   return (
     <div className="space-y-4 pb-20 pt-1">
-      {/* WorkForce PRO Phone App Banner */}
-      <div className="bg-gradient-to-r from-blue-950/70 via-slate-900 to-indigo-950/60 border border-blue-700/40 rounded-2xl p-3 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
-            <Briefcase className="w-5 h-5" />
+      {/* 1. Finances Overview Section (Matching IMG_6546) */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+            <Banknote className="w-4 h-4" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-100">WorkForce PRO Job Hub</span>
-              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-blue-900/80 text-blue-300 border border-blue-600">IN PHONE</span>
-            </div>
-            <p className="text-[11px] text-slate-400">Salaried executive careers, gigs, and shifts are now available on your smartphone!</p>
+            <h2 className="text-base font-bold text-white leading-tight">Finances</h2>
+            <p className="text-[11px] text-slate-400">Your financial overview</p>
           </div>
         </div>
-        <button
-          onClick={() => openPhoneApp('jobs')}
-          className="w-full sm:w-auto px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition active:scale-95 shrink-0"
-        >
-          <Smartphone className="w-3.5 h-3.5" />
-          <span>Open Jobs App</span>
-        </button>
+
+        <div className="bg-[#141417] border border-white/5 rounded-3xl p-4 sm:p-5 space-y-3 shadow-md">
+          <div>
+            <span className="text-xs font-semibold text-slate-400">Bank Balance</span>
+            <div className="text-3xl sm:text-4xl font-black text-white tracking-tight mt-0.5">
+              {formatCurrency(player.cash)}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5 text-xs">
+            <div className="bg-[#1a1a1e] rounded-xl p-2.5 border border-white/5">
+              <span className="text-[11px] text-slate-400">Net Worth</span>
+              <div className="text-sm font-bold text-emerald-400 mt-0.5 truncate">
+                {formatCurrency(netWorth)}
+              </div>
+            </div>
+            <div className="bg-[#1a1a1e] rounded-xl p-2.5 border border-white/5">
+              <span className="text-[11px] text-slate-400">Credit Score</span>
+              <div className="text-sm font-bold text-sky-400 mt-0.5">
+                {player.creditScore} FICO
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Market News Section (Matching IMG_6546) */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <Newspaper className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-white leading-tight">Market News</h2>
+              <p className="text-[11px] text-slate-400">Latest business updates</p>
+            </div>
+          </div>
+          <button
+            onClick={() => openPhoneApp('news')}
+            className="text-xs font-semibold text-sky-400 hover:text-sky-300 flex items-center gap-1 cursor-pointer"
+          >
+            <span>View All</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="bg-[#141417] border border-white/5 rounded-3xl p-4 shadow-md">
+          {latestNews ? (
+            <div 
+              onClick={() => openPhoneApp('news')}
+              className="space-y-1.5 cursor-pointer hover:opacity-90 transition"
+            >
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-amber-400 bg-amber-950/60 border border-amber-600/40 px-2 py-0.5 rounded-md text-[10px]">
+                  {latestNews.source}
+                </span>
+                <span className="text-slate-500 text-[11px]">Day {latestNews.day}</span>
+              </div>
+              <h3 className="font-bold text-sm text-white line-clamp-1">{latestNews.title}</h3>
+              <p className="text-xs text-slate-400 line-clamp-2">{latestNews.content}</p>
+            </div>
+          ) : (
+            <div className="py-6 text-center space-y-1">
+              <Newspaper className="w-8 h-8 text-slate-600 mx-auto" />
+              <div className="text-sm font-bold text-slate-300">No recent news</div>
+              <p className="text-xs text-slate-500">Business activities will appear here</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Section Switcher (Enterprises vs Education vs Gigs) */}
-      <div className="flex bg-slate-900/90 p-1 rounded-2xl border border-slate-800">
+      <div className="flex bg-[#141417] p-1.5 rounded-2xl border border-white/5">
         <button
           onClick={() => setActiveSection('businesses')}
-          className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
             activeSection === 'businesses'
-              ? 'bg-indigo-600 text-white shadow-md'
-              : 'text-slate-400 hover:text-slate-200'
+              ? 'bg-[#007AFF] text-white shadow-md'
+              : 'text-slate-400 hover:text-white'
           }`}
         >
           <Building2 className="w-4 h-4" />
@@ -130,10 +196,10 @@ export const HustleView: React.FC = () => {
 
         <button
           onClick={() => setActiveSection('education')}
-          className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
             activeSection === 'education'
               ? 'bg-amber-600 text-white shadow-md'
-              : 'text-slate-400 hover:text-slate-200'
+              : 'text-slate-400 hover:text-white'
           }`}
         >
           <GraduationCap className="w-4 h-4" />
@@ -142,10 +208,10 @@ export const HustleView: React.FC = () => {
 
         <button
           onClick={() => setActiveSection('gigs')}
-          className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
             activeSection === 'gigs'
               ? 'bg-emerald-600 text-white shadow-md'
-              : 'text-slate-400 hover:text-slate-200'
+              : 'text-slate-400 hover:text-white'
           }`}
         >
           <Briefcase className="w-4 h-4" />

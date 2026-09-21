@@ -37,6 +37,7 @@ export const FinanceView: React.FC = () => {
     bankAccounts,
     creditCards,
     loans,
+    openBankAccount,
     depositBank,
     withdrawBank,
     payCreditCard,
@@ -57,7 +58,7 @@ export const FinanceView: React.FC = () => {
   const [activeSegment, setActiveSegment] = useState<'banking' | 'credit' | 'loans' | 'store'>('banking');
   const [bankActionModal, setBankActionModal] = useState<{
     type: 'deposit' | 'withdraw';
-    accountId: 'checking' | 'savings' | 'emergency';
+    accountId: 'checking' | 'savings';
   } | null>(null);
   const [transferAmount, setTransferAmount] = useState<string>('');
 
@@ -139,64 +140,114 @@ export const FinanceView: React.FC = () => {
       {/* 1. BANKING TAB */}
       {activeSegment === 'banking' && (
         <div className="space-y-3">
-          <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 shadow-xl space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  LIQUID CAPITAL
-                </span>
-                <h3 className="text-base font-bold text-slate-100">Depository Accounts</h3>
+          {!player.hasBankAccount ? (
+            <div className="bg-slate-900/90 border border-emerald-500/30 rounded-3xl p-6 shadow-xl text-center space-y-4 max-w-lg mx-auto">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto shadow-inner">
+                <Landmark className="w-7 h-7" />
               </div>
-              <div className="text-right">
-                <span className="text-[10px] text-slate-400">Total In Bank</span>
-                <div className="text-sm font-bold text-emerald-400">
-                  {formatCurrency(bankAccounts.reduce((sum, a) => sum + a.balance, 0))}
+              <div>
+                <h3 className="text-lg font-bold text-slate-100">Open Vance Banking Account</h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Activate high-yield savings (4.5% APY) & everyday checking accounts. One-time opening fee applies.
+                </p>
+              </div>
+
+              <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-2 text-xs text-left">
+                <div className="flex justify-between items-center text-slate-300">
+                  <span className="text-slate-400">Account Opening Fee:</span>
+                  <span className="font-bold text-emerald-400">$500 Cash</span>
+                </div>
+                <div className="flex justify-between items-center text-slate-300">
+                  <span className="text-slate-400">Standard Checking:</span>
+                  <span className="font-semibold text-slate-200">Included (0.1% APY)</span>
+                </div>
+                <div className="flex justify-between items-center text-slate-300">
+                  <span className="text-slate-400">High-Yield Savings:</span>
+                  <span className="font-semibold text-emerald-400">Included (4.5% APY)</span>
+                </div>
+                <div className="flex justify-between items-center text-slate-300">
+                  <span className="text-slate-400">Your Liquid Cash:</span>
+                  <span className={`font-bold ${player.cash >= 500 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {formatCurrency(player.cash)}
+                  </span>
                 </div>
               </div>
-            </div>
 
-            {/* Account List */}
-            <div className="space-y-2.5 pt-1">
-              {bankAccounts.map((account) => (
-                <div
-                  key={account.id}
-                  className="bg-slate-800/60 border border-slate-800 rounded-2xl p-3.5 space-y-2.5"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="text-xs sm:text-sm font-bold text-slate-100">{account.name}</h4>
-                      <span className="text-[11px] text-emerald-400 font-semibold">
-                        {(account.interestRate * 100).toFixed(1)}% APY Yield
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-base font-bold text-slate-100">
-                        {formatCurrency(account.balance)}
+              <button
+                onClick={() => openBankAccount()}
+                disabled={player.cash < 500}
+                className={`w-full py-3 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center justify-center gap-2 shadow-lg active:scale-95 ${
+                  player.cash >= 500
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400/50'
+                    : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
+                }`}
+              >
+                <CreditCard className="w-4 h-4" />
+                <span>
+                  {player.cash >= 500 ? 'Pay $500 & Open Bank Account' : `Need $500 Cash to Open (Short: $${(500 - player.cash).toLocaleString()})`}
+                </span>
+              </button>
+            </div>
+          ) : (
+            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 shadow-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    LIQUID CAPITAL
+                  </span>
+                  <h3 className="text-base font-bold text-slate-100">Depository Accounts</h3>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-slate-400">Total In Bank</span>
+                  <div className="text-sm font-bold text-emerald-400">
+                    {formatCurrency(bankAccounts.reduce((sum, a) => sum + a.balance, 0))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Account List */}
+              <div className="space-y-2.5 pt-1">
+                {bankAccounts.map((account) => (
+                  <div
+                    key={account.id}
+                    className="bg-slate-800/60 border border-slate-800 rounded-2xl p-3.5 space-y-2.5"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="text-xs sm:text-sm font-bold text-slate-100">{account.name}</h4>
+                        <span className="text-[11px] text-emerald-400 font-semibold">
+                          {(account.interestRate * 100).toFixed(1)}% APY Yield
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-base font-bold text-slate-100">
+                          {formatCurrency(account.balance)}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    <button
-                      onClick={() => setBankActionModal({ type: 'deposit', accountId: account.id })}
-                      className="py-1.5 px-3 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 rounded-xl text-xs font-semibold text-emerald-400 flex items-center justify-center gap-1 cursor-pointer transition active:scale-95"
-                    >
-                      <ArrowDownLeft className="w-3.5 h-3.5" />
-                      <span>Deposit</span>
-                    </button>
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <button
+                        onClick={() => setBankActionModal({ type: 'deposit', accountId: account.id })}
+                        className="py-1.5 px-3 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 rounded-xl text-xs font-semibold text-emerald-400 flex items-center justify-center gap-1 cursor-pointer transition active:scale-95"
+                      >
+                        <ArrowDownLeft className="w-3.5 h-3.5" />
+                        <span>Deposit</span>
+                      </button>
 
-                    <button
-                      onClick={() => setBankActionModal({ type: 'withdraw', accountId: account.id })}
-                      className="py-1.5 px-3 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 rounded-xl text-xs font-semibold text-slate-200 flex items-center justify-center gap-1 cursor-pointer transition active:scale-95"
-                    >
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                      <span>Withdraw</span>
-                    </button>
+                      <button
+                        onClick={() => setBankActionModal({ type: 'withdraw', accountId: account.id })}
+                        className="py-1.5 px-3 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 rounded-xl text-xs font-semibold text-slate-200 flex items-center justify-center gap-1 cursor-pointer transition active:scale-95"
+                      >
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                        <span>Withdraw</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 

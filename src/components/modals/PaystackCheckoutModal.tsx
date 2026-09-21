@@ -405,12 +405,38 @@ export const PaystackCheckoutModal: React.FC<PaystackCheckoutModalProps> = ({
               <p className="text-xs text-rose-300 max-w-sm mx-auto">
                 {errorMessage || 'Could not connect to Paystack. Please verify that your Paystack keys are valid.'}
               </p>
-              <button
-                onClick={onClose}
-                className="mt-2 px-5 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl transition cursor-pointer"
-              >
-                Close
-              </button>
+              <div className="flex items-center justify-center gap-2 mt-3">
+                <button
+                  onClick={() => {
+                    setStep('initializing');
+                    setErrorMessage(null);
+                    initializePaystackTransaction(bundle!, 'NGN', 'printblue436@gmail.com').then((initRes) => {
+                      if (initRes.success && initRes.authorizationUrl && initRes.accessCode && initRes.reference) {
+                        setAuthUrl(initRes.authorizationUrl);
+                        setAccessCode(initRes.accessCode);
+                        setReference(initRes.reference);
+                        setTotalGems(initRes.totalGems || (bundle!.gems + bundle!.bonusGems));
+                        setStep('ready');
+                        launchPaystackInline(initRes.accessCode, initRes.reference, initRes.authorizationUrl);
+                        startPolling(initRes.reference, initRes.totalGems || (bundle!.gems + bundle!.bonusGems));
+                      } else {
+                        setStep('failed');
+                        setErrorMessage(initRes.error || 'Failed to initialize Paystack payment.');
+                      }
+                    });
+                  }}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Retry with NGN</span>
+                </button>
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           )}
 

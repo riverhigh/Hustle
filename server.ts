@@ -116,7 +116,7 @@ app.post('/api/paystack/initialize', async (req, res) => {
       paystackPayload.callback_url = callbackUrl;
     }
 
-    const paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
+    let paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${secretKey}`,
@@ -125,7 +125,36 @@ app.post('/api/paystack/initialize', async (req, res) => {
       body: JSON.stringify(paystackPayload),
     });
 
-    const data = await paystackRes.json();
+    let rawText = await paystackRes.text();
+    let data: any = {};
+    try {
+      data = rawText ? JSON.parse(rawText) : {};
+    } catch {
+      console.warn('Paystack initialize response was not valid JSON:', rawText);
+    }
+
+    // Fallback: If currency USD failed because merchant account only supports NGN, retry automatically with NGN
+    if (!data.status && (data.code === 'unsupported_currency' || data.message?.toLowerCase().includes('currency'))) {
+      console.log('Merchant account requires NGN. Automatically retrying with NGN currency...');
+      paystackPayload.currency = 'NGN';
+      paystackPayload.amount = Math.round(bundle.priceNGN * 100);
+
+      paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${secretKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(paystackPayload),
+      });
+
+      rawText = await paystackRes.text();
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        console.warn('Paystack retry response was not valid JSON:', rawText);
+      }
+    }
 
     if (!data.status || !data.data) {
       return res.status(400).json({
@@ -190,7 +219,17 @@ app.post('/api/paystack/verify', async (req, res) => {
       }
     );
 
-    const data = await paystackRes.json();
+    const rawVerifyText = await paystackRes.text();
+    let data: any = {};
+    try {
+      data = rawVerifyText ? JSON.parse(rawVerifyText) : {};
+    } catch {
+      console.warn('Paystack verify response was not valid JSON:', rawVerifyText);
+      return res.status(502).json({
+        success: false,
+        error: 'Paystack service returned an invalid response. Please wait a moment and retry verification.',
+      });
+    }
 
     if (!data.status || !data.data) {
       return res.status(400).json({
@@ -273,8 +312,12 @@ app.post('/api/paystack/verify', async (req, res) => {
 
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
+    const isHmrDisabled = process.env.DISABLE_HMR === 'true';
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: isHmrDisabled ? false : true,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);

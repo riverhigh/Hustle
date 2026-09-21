@@ -43,6 +43,7 @@ export const FinanceApp: React.FC<FinanceAppProps> = ({ onBack }) => {
     bankAccounts,
     creditCards,
     loans,
+    openBankAccount,
     depositBank,
     withdrawBank,
     payCreditCard,
@@ -64,7 +65,7 @@ export const FinanceApp: React.FC<FinanceAppProps> = ({ onBack }) => {
   // Banking transfer modal state
   const [bankActionModal, setBankActionModal] = useState<{
     type: 'deposit' | 'withdraw';
-    accountId: 'checking' | 'savings' | 'emergency';
+    accountId: 'checking' | 'savings';
   } | null>(null);
   const [transferAmount, setTransferAmount] = useState<string>('5000');
   
@@ -219,58 +220,114 @@ export const FinanceApp: React.FC<FinanceAppProps> = ({ onBack }) => {
         {/* TAB 1: BANK ACCOUNTS */}
         {activeTab === 'banking' && (
           <div className="space-y-3">
-            {bankAccounts.map((acc) => (
-              <div
-                key={acc.id}
-                className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 transition space-y-2.5"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-emerald-400">
-                      <Landmark className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <span className="font-bold text-xs text-white block">{acc.name}</span>
-                      <span className="text-[10px] text-slate-400">
-                        {acc.interestRate > 0 ? `${(acc.interestRate * 100).toFixed(1)}% APY Yield` : 'Standard Liquid'}
-                      </span>
-                    </div>
+            {!player.hasBankAccount ? (
+              <div className="p-4 rounded-3xl bg-gradient-to-br from-emerald-950/70 via-slate-900 to-slate-950 border border-emerald-500/40 text-center space-y-3.5 shadow-xl">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto shadow-inner">
+                  <Landmark className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white">Open Vance Mobile Banking</h3>
+                  <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+                    Activate high-yield savings (4.5% APY) & everyday checking accounts. One-time opening fee applies.
+                  </p>
+                </div>
+
+                <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-2xl space-y-1.5 text-xs text-left">
+                  <div className="flex justify-between items-center text-slate-300">
+                    <span className="text-slate-400">Account Opening Fee:</span>
+                    <span className="font-black text-emerald-400">$500 Cash</span>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm font-black text-white">{formatCurrency(acc.balance)}</div>
-                    <div className="text-[9px] text-emerald-400 font-semibold">Protected</div>
+                  <div className="flex justify-between items-center text-slate-300">
+                    <span className="text-slate-400">Standard Checking:</span>
+                    <span className="font-semibold text-white">Included (0.1% APY)</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-300">
+                    <span className="text-slate-400">High-Yield Savings:</span>
+                    <span className="font-semibold text-emerald-400">Included (4.5% APY)</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-300">
+                    <span className="text-slate-400">Your Liquid Cash:</span>
+                    <span className={`font-bold ${player.cash >= 500 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {formatCurrency(player.cash)}
+                    </span>
                   </div>
                 </div>
 
-                <div className="flex gap-2 pt-2 border-t border-slate-800/80">
-                  <button
-                    onClick={() => {
-                      setBankActionModal({ type: 'deposit', accountId: acc.id });
-                      setTransferAmount('5000');
-                    }}
-                    className="flex-1 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1 active:scale-95"
-                  >
-                    <ArrowDownLeft className="w-3.5 h-3.5" />
-                    <span>Deposit</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setBankActionModal({ type: 'withdraw', accountId: acc.id });
-                      setTransferAmount('5000');
-                    }}
-                    disabled={acc.balance <= 0}
-                    className={`flex-1 py-1.5 rounded-xl border font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 ${
-                      acc.balance > 0
-                        ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
-                        : 'bg-slate-900 border-slate-800 text-slate-600 cursor-not-allowed'
-                    }`}
-                  >
-                    <ArrowUpRight className="w-3.5 h-3.5" />
-                    <span>Withdraw</span>
-                  </button>
-                </div>
+                <button
+                  onClick={() => {
+                    if (openBankAccount()) {
+                      triggerToast('Bank account opened successfully! $500 fee paid.');
+                    } else {
+                      triggerToast('Need $500 cash in hand to open an account!');
+                    }
+                  }}
+                  disabled={player.cash < 500}
+                  className={`w-full py-2.5 rounded-xl font-black text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-lg active:scale-95 ${
+                    player.cash >= 500
+                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400/50'
+                      : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
+                  }`}
+                >
+                  <CreditCard className="w-4 h-4" />
+                  <span>
+                    {player.cash >= 500 ? 'Pay $500 & Open Accounts' : `Need $500 Cash (Short: $${(500 - player.cash).toLocaleString()})`}
+                  </span>
+                </button>
               </div>
-            ))}
+            ) : (
+              bankAccounts.map((acc) => (
+                <div
+                  key={acc.id}
+                  className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 transition space-y-2.5"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-emerald-400">
+                        <Landmark className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-xs text-white block">{acc.name}</span>
+                        <span className="text-[10px] text-slate-400">
+                          {acc.interestRate > 0 ? `${(acc.interestRate * 100).toFixed(1)}% APY Yield` : 'Standard Liquid'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-black text-white">{formatCurrency(acc.balance)}</div>
+                      <div className="text-[9px] text-emerald-400 font-semibold">Protected</div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-2 border-t border-slate-800/80">
+                    <button
+                      onClick={() => {
+                        setBankActionModal({ type: 'deposit', accountId: acc.id });
+                        setTransferAmount('5000');
+                      }}
+                      className="flex-1 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1 active:scale-95"
+                    >
+                      <ArrowDownLeft className="w-3.5 h-3.5" />
+                      <span>Deposit</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setBankActionModal({ type: 'withdraw', accountId: acc.id });
+                        setTransferAmount('5000');
+                      }}
+                      disabled={acc.balance <= 0}
+                      className={`flex-1 py-1.5 rounded-xl border font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 ${
+                        acc.balance > 0
+                          ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
+                          : 'bg-slate-900 border-slate-800 text-slate-600 cursor-not-allowed'
+                      }`}
+                    >
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                      <span>Withdraw</span>
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         )}
 

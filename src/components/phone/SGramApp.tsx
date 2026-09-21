@@ -136,13 +136,12 @@ export const SGramApp: React.FC = () => {
 
   // Create new post
   const handlePublishPost = (type: 'housing' | 'wheels' | 'business' | 'watch') => {
-    if (player.energy < 15) {
-      alert("Not enough energy! You need at least 15⚡ to curate and post photo content.");
+    if (player.energy < 20) {
+      alert("Not enough energy! You need at least 20⚡ to curate and post photo content.");
       return;
     }
 
-    spendEnergy(15);
-    let gainedFollowers = 0;
+    spendEnergy(20);
     let captionText = '';
     let iconType: 'home' | 'car' | 'business' | 'luxury' = 'luxury';
     let headlineText = '';
@@ -151,34 +150,59 @@ export const SGramApp: React.FC = () => {
     if (type === 'housing') {
       iconType = 'home';
       gradient = 'from-amber-800 via-stone-900 to-slate-950';
-      const homeName = currentHousing?.name || "Mom's Couch";
+      const homeName = currentHousing?.name || "My Space";
       headlineText = `Living high: ${homeName} 🏙️✨`;
       captionText = `Blessed to call this place home. Focus on long-term assets and compound growth! 🔑 #CribTour #HustleRewards`;
-      gainedFollowers = Math.floor(Math.random() * 800) + (player.housingTier * 300);
     } else if (type === 'wheels') {
       iconType = 'car';
       gradient = 'from-red-900 via-slate-900 to-black';
-      const whip = currentTransport?.name || 'Urban Scooter';
+      const whip = currentTransport?.name || 'My Ride';
       headlineText = `New machine: ${whip} 🏎️💨`;
       captionText = `Nothing beats clean wheels and open roads. From riding the bus to owning the road! 🏁 #WhipGame #Speed`;
-      gainedFollowers = Math.floor(Math.random() * 1000) + (player.transportationTier * 400);
     } else if (type === 'business') {
       iconType = 'business';
       gradient = 'from-cyan-900 via-slate-900 to-black';
       const biz = ownedBusinesses[0]?.name || 'Hustle Operations';
       headlineText = `Boardroom execution at ${biz} 💼📈`;
       captionText = `Another milestone reached! The grind you put in behind closed doors is what creates the victory. 🚀 #CeoLife #Empire`;
-      gainedFollowers = Math.floor(Math.random() * 1200) + 500;
     } else {
       iconType = 'luxury';
       gradient = 'from-yellow-900 via-slate-900 to-black';
       headlineText = `Swiss Precision: Time is Money ⌚✨`;
       captionText = `Invest in time, because it is the only currency you can never get back. 💎 #Horology #BillionaireMindset`;
-      gainedFollowers = Math.floor(Math.random() * 900) + 400;
     }
 
-    const gainedLikes = Math.floor(gainedFollowers * 2.8);
-    addSocialFollowers('sgram', gainedFollowers, gainedLikes);
+    // Algorithmic luck roll (does NOT guarantee followers - authentic slow climb):
+    // 50% chance: Algorithm flop (0 followers, 1-5 likes)
+    // 32% chance: Small trickle (+1 to +3 followers)
+    // 14% chance: Decent traction (+4 to +8 followers)
+    // 4% chance: Curated explore feature (+10 to +20 followers)
+    const roll = Math.random();
+    let gainedFollowers = 0;
+    let gainedLikes = 0;
+    let feedbackMsg = '';
+
+    if (roll < 0.50) {
+      gainedFollowers = 0;
+      gainedLikes = Math.floor(Math.random() * 5) + 1;
+      feedbackMsg = "Post reached few accounts: 0 new followers, but a few likes from mutuals. Keep posting consistently!";
+    } else if (roll < 0.82) {
+      gainedFollowers = Math.floor(Math.random() * 3) + 1;
+      gainedLikes = gainedFollowers * (Math.floor(Math.random() * 3) + 2) + 4;
+      feedbackMsg = `Your aesthetic caught attention! Gained +${gainedFollowers} follower${gainedFollowers > 1 ? 's' : ''} and ${gainedLikes} likes.`;
+    } else if (roll < 0.96) {
+      gainedFollowers = Math.floor(Math.random() * 5) + 4;
+      gainedLikes = gainedFollowers * (Math.floor(Math.random() * 3) + 3) + 10;
+      feedbackMsg = `Explore tab pickup! Gained +${gainedFollowers} followers and ${gainedLikes} likes.`;
+    } else {
+      gainedFollowers = Math.floor(Math.random() * 11) + 10;
+      gainedLikes = gainedFollowers * 4 + 25;
+      feedbackMsg = `✨ Curated repost! Gained +${gainedFollowers} followers and ${gainedLikes} likes!`;
+    }
+
+    if (gainedFollowers > 0 || gainedLikes > 0) {
+      addSocialFollowers('sgram', gainedFollowers, gainedLikes);
+    }
 
     const userPost: SGramPost = {
       id: `my-post-${Date.now()}`,
@@ -199,14 +223,16 @@ export const SGramApp: React.FC = () => {
 
     setPosts((prev) => [userPost, ...prev]);
     setActiveTab('feed');
+    alert(feedbackMsg);
   };
 
-  // Brand Deal sponsorship claims
+  // Brand Deal sponsorship claims (progressive milestones for slow climb)
   const SPONSOR_TIERS = [
-    { id: 'sp-1', brand: 'Apex Electrolyte Water', reqFollowers: 500, payout: 350, desc: 'Single sponsored post tagging @ApexHydro.' },
-    { id: 'sp-2', brand: 'Chronos Luxury Watches', reqFollowers: 2500, payout: 1800, desc: 'Wear and tag their latest timepiece in your feed.' },
-    { id: 'sp-3', brand: 'Titan Private Wealth Advisory', reqFollowers: 10000, payout: 6500, desc: 'Promote high-net-worth portfolio management.' },
-    { id: 'sp-4', brand: 'Monaco Grand Yacht Charters', reqFollowers: 50000, payout: 28000, desc: 'VIP brand ambassadorship campaign.' }
+    { id: 'sp-0', brand: 'Local Bean Roasters', reqFollowers: 50, payout: 150, desc: 'Feature iced coffee can in your daily story.' },
+    { id: 'sp-1', brand: 'Metro Gym Apparel', reqFollowers: 200, payout: 400, desc: 'Tag @MetroFit in your workout or lifestyle post.' },
+    { id: 'sp-2', brand: 'Apex Electrolyte Water', reqFollowers: 600, payout: 950, desc: 'Single sponsored post tagging @ApexHydro.' },
+    { id: 'sp-3', brand: 'Chronos Luxury Watches', reqFollowers: 2500, payout: 3500, desc: 'Wear and tag their latest timepiece in your feed.' },
+    { id: 'sp-4', brand: 'Titan Private Wealth Advisory', reqFollowers: 10000, payout: 12000, desc: 'Promote high-net-worth portfolio management.' }
   ];
 
   const handleClaimSponsor = (s: typeof SPONSOR_TIERS[0]) => {

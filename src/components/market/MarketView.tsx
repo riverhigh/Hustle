@@ -4,14 +4,14 @@ import { formatCurrency } from '../../utils/formatters';
 import { 
   TrendingUp, 
   TrendingDown, 
-  Smartphone, 
   ArrowUpRight, 
   Sparkles, 
   ShieldCheck,
   ChevronRight,
   PieChart,
   Car,
-  Home
+  Home,
+  BarChart3
 } from 'lucide-react';
 
 export const MarketView: React.FC = () => {
@@ -19,7 +19,6 @@ export const MarketView: React.FC = () => {
     player,
     stocks,
     portfolio,
-    openPhoneApp,
     setActiveTab,
   } = useGame();
 
@@ -35,32 +34,40 @@ export const MarketView: React.FC = () => {
 
   return (
     <div className="space-y-4 pb-20 max-w-lg mx-auto">
-      {/* Hero Card: Moved to Smartphone */}
-      <div className="bg-gradient-to-br from-indigo-950/80 via-slate-900 to-slate-950 border border-indigo-500/40 rounded-3xl p-5 shadow-2xl text-center space-y-4">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 via-blue-600 to-cyan-400 text-white mx-auto flex items-center justify-center shadow-lg shadow-indigo-500/30">
-          <TrendingUp className="w-7 h-7" />
-        </div>
-
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-[11px] font-bold mb-1.5">
-            <Smartphone className="w-3 h-3" />
-            <span>Now on Mobile</span>
+      {/* Markets Header Card */}
+      <div className="bg-gradient-to-br from-indigo-950/80 via-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+              <BarChart3 className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-black text-white tracking-tight">Securities & Capital Markets</h2>
+              <p className="text-xs text-slate-400">NYSE & NASDAQ Index Feeds</p>
+            </div>
           </div>
-          <h2 className="text-lg font-black text-white tracking-tight">iStocks Exchange</h2>
-          <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto leading-relaxed">
-            Live NYSE & NASDAQ securities trading, real-time charts, REITs, and portfolio management have moved to your in-game smartphone!
-          </p>
+          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            Market Open
+          </span>
         </div>
 
-        {/* Primary Action Button */}
-        <button
-          onClick={() => openPhoneApp('stocks')}
-          className="w-full py-3.5 px-4 bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-600 hover:from-indigo-500 hover:to-blue-500 text-white font-extrabold text-sm rounded-2xl shadow-xl shadow-indigo-950/60 flex items-center justify-center gap-2 cursor-pointer transition active:scale-98"
-        >
-          <Smartphone className="w-4 h-4" />
-          <span>Launch iStocks App on Phone</span>
-          <ArrowUpRight className="w-4 h-4" />
-        </button>
+        {/* Live Market Tickers Ribbon */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-800/80">
+          {stocks.slice(0, 4).map((s) => {
+            const isPos = s.changePercent >= 0;
+            return (
+              <div key={s.id} className="p-2 bg-slate-950/60 border border-slate-800/70 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black text-white">{s.ticker}</span>
+                  <span className={`text-[10px] font-bold ${isPos ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {isPos ? '+' : ''}{s.changePercent.toFixed(1)}%
+                  </span>
+                </div>
+                <div className="text-xs font-bold text-slate-300 mt-0.5">{formatCurrency(s.price)}</div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Portfolio Quick Summary */}
@@ -99,8 +106,7 @@ export const MarketView: React.FC = () => {
                 return (
                   <div
                     key={item.stockId}
-                    onClick={() => openPhoneApp('stocks')}
-                    className="flex items-center justify-between p-2.5 bg-slate-950/60 hover:bg-slate-800/60 border border-slate-800/60 rounded-xl cursor-pointer transition"
+                    className="flex items-center justify-between p-2.5 bg-slate-950/60 border border-slate-800/60 rounded-xl"
                   >
                     <div>
                       <div className="flex items-center gap-1.5">
