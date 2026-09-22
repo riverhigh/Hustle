@@ -14,9 +14,9 @@ export default defineConfig(() => {
         includeAssets: ['favicon.png', 'apple-touch-icon.png', 'icon.svg'],
         manifest: {
           id: '/',
-          name: 'Hustle & Empire: Life Simulator',
+          name: 'Hustle Empire',
           short_name: 'HustleEmpire',
-          description: 'A mobile life, hustle, real estate, and investment simulator where you start broke and build a financial empire.',
+          description: 'A mobile life, hustle, real estate, and investment tycoon simulator where you build a financial empire from the ground up.',
           theme_color: '#0f172a',
           background_color: '#020617',
           display: 'standalone',
@@ -70,8 +70,7 @@ export default defineConfig(() => {
           ],
         },
         devOptions: {
-          enabled: true,
-          type: 'module',
+          enabled: false,
         },
       }),
     ],

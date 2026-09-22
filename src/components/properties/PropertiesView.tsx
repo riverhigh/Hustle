@@ -24,22 +24,16 @@ import {
 export const PropertiesView: React.FC = () => {
   const {
     player,
-    marketProperties,
     ownedProperties,
-    buyProperty,
     renovatePropertyArea,
     setTenantToProperty,
     evictTenant,
     collectRent,
-    toggleWatchlistProperty,
     autoCollectRentUnlocked,
     unlockAutoCollectManager,
+    openPhoneApp,
   } = useGame();
 
-  const [activeTab, setActiveTab] = useState<'portfolio' | 'mls'>('portfolio');
-  const [selectedPropertyToAnalyze, setSelectedPropertyToAnalyze] = useState<Property | null>(null);
-  const [negotiationOffer, setNegotiationOffer] = useState<number>(85000);
-  const [downPaymentPercent, setDownPaymentPercent] = useState<number>(20);
   const [inspectingProperty, setInspectingProperty] = useState<Property | null>(null);
   const [leasingProperty, setLeasingProperty] = useState<Property | null>(null);
 
@@ -52,126 +46,112 @@ export const PropertiesView: React.FC = () => {
   const netMonthlyCashFlow = totalMonthlyRent - totalMonthlyExpenses;
   const totalUnclaimedRent = ownedProperties.reduce((sum, p) => sum + (p.collectedRentUnclaimed || 0), 0);
 
-  // Seller reaction logic based on offer vs asking price
-  const getSellerReaction = (offer: number, asking: number) => {
-    const ratio = offer / asking;
-    const negotiationLevel = player.skills.negotiation.level;
-    const adjustedRatio = ratio + (negotiationLevel - 1) * 0.02;
-
-    if (adjustedRatio >= 0.98) return { text: 'Accepting with enthusiasm!', color: 'text-emerald-400', chance: 95 };
-    if (adjustedRatio >= 0.92) return { text: 'Interested & favorable', color: 'text-teal-400', chance: 80 };
-    if (adjustedRatio >= 0.85) return { text: 'Uncertain, contemplating', color: 'text-amber-400', chance: 50 };
-    if (adjustedRatio >= 0.75) return { text: 'Reluctant, borderline offended', color: 'text-orange-400', chance: 20 };
-    return { text: 'Offended! High risk of rejection', color: 'text-rose-400', chance: 5 };
-  };
-
   return (
     <div className="space-y-4 pb-24 pt-1">
-      {/* Top Segmented Tabs */}
-      <div className="flex bg-slate-900/90 p-1 rounded-2xl border border-slate-800">
-        <button
-          onClick={() => setActiveTab('portfolio')}
-          className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-            activeTab === 'portfolio' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Building2 className="w-4 h-4" />
-          <span>My Portfolio ({ownedProperties.length})</span>
-        </button>
+      {/* Top Header & Phone MLS Shortcut */}
+      <div className="flex items-center justify-between bg-slate-900/90 p-3 rounded-2xl border border-slate-800">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white">
+            <Building2 className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-sm font-black text-white">Property Portfolio</h2>
+            <p className="text-[10px] text-slate-400">{ownedProperties.length} Real Estate Assets</p>
+          </div>
+        </div>
 
         <button
-          onClick={() => setActiveTab('mls')}
-          className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-            activeTab === 'mls' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
-          }`}
+          onClick={() => openPhoneApp('mls')}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-md active:scale-95 cursor-pointer"
         >
-          <Search className="w-4 h-4" />
-          <span>MLS Market Listings ({marketProperties.length})</span>
+          <Search className="w-3.5 h-3.5" />
+          <span>Phone MLS Portal</span>
         </button>
       </div>
 
-      {/* PORTFOLIO TAB */}
-      {activeTab === 'portfolio' && (
-        <div className="space-y-4">
-          {/* Overview Dashboard Card */}
-          <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 shadow-xl space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  REAL ESTATE PORTFOLIO
-                </span>
-                <h3 className="text-base font-bold text-slate-100">Asset & Income Summary</h3>
-              </div>
+      {/* PORTFOLIO CONTENT */}
+      <div className="space-y-4">
+        {/* Overview Dashboard Card */}
+        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 shadow-xl space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                REAL ESTATE PORTFOLIO
+              </span>
+              <h3 className="text-base font-bold text-slate-100">Asset & Income Summary</h3>
+            </div>
 
-              {/* Collect Rent Action */}
-              <div className="flex items-center gap-2">
-                {!autoCollectRentUnlocked && (
-                  <button
-                    onClick={() => unlockAutoCollectManager()}
-                    className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-[11px] font-semibold cursor-pointer transition"
-                    title="Hire Property Manager to auto-collect rent daily"
-                  >
-                    Hire Manager ($2.5k)
-                  </button>
-                )}
+            {/* Collect Rent Action */}
+            <div className="flex items-center gap-2">
+              {!autoCollectRentUnlocked && (
                 <button
-                  onClick={() => collectRent()}
-                  disabled={totalUnclaimedRent === 0}
-                  className={`px-3 py-1.5 font-bold rounded-xl text-xs shadow-md transition active:scale-95 cursor-pointer flex items-center gap-1 ${
-                    totalUnclaimedRent > 0
-                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white animate-pulse'
-                      : 'bg-slate-800 text-slate-400 border border-slate-700 cursor-not-allowed opacity-75'
-                  }`}
+                  onClick={() => unlockAutoCollectManager()}
+                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-[11px] font-semibold cursor-pointer transition"
+                  title="Hire Property Manager to auto-collect rent daily"
                 >
-                  <DollarSign className="w-3.5 h-3.5" />
-                  <span>Collect Rent {totalUnclaimedRent > 0 ? `(${formatCurrency(totalUnclaimedRent)})` : ''}</span>
+                  Hire Manager ($2.5k)
                 </button>
-              </div>
-            </div>
-
-            {/* Metric Grids */}
-            <div className="grid grid-cols-3 gap-2 bg-slate-800/60 p-3 rounded-2xl border border-slate-800 text-center">
-              <div>
-                <span className="text-[10px] text-slate-400">PORTFOLIO</span>
-                <div className="text-xs sm:text-sm font-bold text-slate-100">
-                  {formatCurrency(totalPortfolioValue)}
-                </div>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-400">EQUITY</span>
-                <div className="text-xs sm:text-sm font-bold text-indigo-400">
-                  {formatCurrency(totalEquity)}
-                </div>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-400">NET CASH FLOW</span>
-                <div className={`text-xs sm:text-sm font-bold ${netMonthlyCashFlow >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {formatCurrency(netMonthlyCashFlow)}/mo
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-xs text-slate-400 px-1 pt-0.5">
-              <span>Gross Rent: <strong className="text-emerald-400">{formatCurrency(totalMonthlyRent)}/mo</strong></span>
-              <span>Debt & OpEx: <strong className="text-slate-300">{formatCurrency(totalMonthlyExpenses)}/mo</strong></span>
+              )}
+              <button
+                onClick={() => collectRent()}
+                disabled={totalUnclaimedRent === 0}
+                className={`px-3 py-1.5 font-bold rounded-xl text-xs shadow-md transition active:scale-95 cursor-pointer flex items-center gap-1 ${
+                  totalUnclaimedRent > 0
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white animate-pulse'
+                    : 'bg-slate-800 text-slate-400 border border-slate-700 cursor-not-allowed opacity-75'
+                }`}
+              >
+                <DollarSign className="w-3.5 h-3.5" />
+                <span>Collect Rent {totalUnclaimedRent > 0 ? `(${formatCurrency(totalUnclaimedRent)})` : ''}</span>
+              </button>
             </div>
           </div>
 
-          {/* Owned Property Cards */}
-          {ownedProperties.length === 0 ? (
-            <div className="bg-slate-900/80 border border-dashed border-slate-800 rounded-3xl p-8 text-center space-y-3">
-              <Home className="w-10 h-10 text-slate-600 mx-auto" />
-              <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                You don't own any properties yet. Head to the <strong className="text-indigo-300">Market Scanner</strong> to inspect your first fixer-upper or turn-key rental!
-              </p>
-              <button
-                onClick={() => setActiveTab('mls')}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl cursor-pointer"
-              >
-                Browse MLS Listings
-              </button>
+          {/* Metric Grids */}
+          <div className="grid grid-cols-3 gap-2 bg-slate-800/60 p-3 rounded-2xl border border-slate-800 text-center">
+            <div>
+              <span className="text-[10px] text-slate-400">PORTFOLIO</span>
+              <div className="text-xs sm:text-sm font-bold text-slate-100">
+                {formatCurrency(totalPortfolioValue)}
+              </div>
             </div>
-          ) : (
+            <div>
+              <span className="text-[10px] text-slate-400">EQUITY</span>
+              <div className="text-xs sm:text-sm font-bold text-indigo-400">
+                {formatCurrency(totalEquity)}
+              </div>
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400">NET CASH FLOW</span>
+              <div className={`text-xs sm:text-sm font-bold ${netMonthlyCashFlow >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {formatCurrency(netMonthlyCashFlow)}/mo
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between text-xs text-slate-400 px-1 pt-0.5">
+            <span>Gross Rent: <strong className="text-emerald-400">{formatCurrency(totalMonthlyRent)}/mo</strong></span>
+            <span>Debt & OpEx: <strong className="text-slate-300">{formatCurrency(totalMonthlyExpenses)}/mo</strong></span>
+          </div>
+        </div>
+
+        {/* Owned Property Cards */}
+        {ownedProperties.length === 0 ? (
+          <div className="bg-slate-900/80 border border-dashed border-slate-800 rounded-3xl p-8 text-center space-y-3">
+            <Home className="w-10 h-10 text-slate-600 mx-auto" />
+            <div className="text-sm font-bold text-slate-200">No properties owned yet</div>
+            <p className="text-xs text-slate-400 max-w-xs mx-auto">
+              Market listings have been moved exclusively to the Phone. Open the verified <strong className="text-indigo-300">MLS Portal</strong> app to underwrite and acquire properties!
+            </p>
+            <button
+              onClick={() => openPhoneApp('mls')}
+              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl cursor-pointer shadow-md transition active:scale-95 flex items-center gap-1.5 mx-auto"
+            >
+              <Search className="w-4 h-4" />
+              <span>Launch Phone MLS Portal</span>
+            </button>
+          </div>
+        ) : (
             <div className="space-y-3">
               {ownedProperties.map((property) => {
                 return (
@@ -263,226 +243,6 @@ export const PropertiesView: React.FC = () => {
             </div>
           )}
         </div>
-      )}
-
-      {/* MLS MARKET LISTINGS TAB */}
-      {activeTab === 'mls' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-slate-100">MLS Public Real Estate Board</h3>
-              <p className="text-xs text-slate-400">Standard residential & commercial properties available for purchase</p>
-            </div>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-              {marketProperties.length} listings
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {marketProperties.map((prop) => (
-              <div
-                key={prop.id}
-                className="bg-slate-900/90 border border-slate-800 hover:border-slate-700 rounded-3xl overflow-hidden shadow-xl flex flex-col transition"
-              >
-                <div className="relative h-44 w-full">
-                  <img
-                    src={prop.image}
-                    alt={prop.address}
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-black/30" />
-
-                  <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
-                    <span className="px-2 py-0.5 bg-slate-900/80 backdrop-blur-md rounded-lg text-[10px] font-bold text-indigo-300 border border-slate-700/60">
-                      {prop.neighborhood}
-                    </span>
-                    <span className="px-2 py-0.5 bg-slate-900/80 backdrop-blur-md rounded-lg text-[10px] font-semibold text-slate-300 border border-slate-700/60">
-                      {prop.daysOnMarket}d on MLS
-                    </span>
-                  </div>
-
-                  <button
-                    onClick={() => toggleWatchlistProperty(prop.id)}
-                    className="absolute top-2.5 right-2.5 p-1.5 bg-slate-900/80 backdrop-blur-md rounded-xl text-slate-300 hover:text-amber-400 border border-slate-700/60 cursor-pointer"
-                    title="Bookmark"
-                  >
-                    <Bookmark className={`w-4 h-4 ${prop.isWatchlist ? 'fill-amber-400 text-amber-400' : ''}`} />
-                  </button>
-
-                  <div className="absolute bottom-2.5 left-3 right-3 flex items-end justify-between">
-                    <div>
-                      <h4 className="text-sm font-bold text-white drop-shadow truncate">{prop.address}</h4>
-                      <span className="text-[11px] text-emerald-300">
-                        Est. Rent: <strong>{formatCurrency(prop.estimatedRent)}/mo</strong>
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-base font-black text-emerald-400 drop-shadow">
-                        {formatCurrency(prop.askingPrice)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-3.5 space-y-3 flex-1 flex flex-col justify-between">
-                  <div className="grid grid-cols-3 gap-1.5 bg-slate-800/50 p-2 rounded-xl border border-slate-800 text-center text-xs">
-                    <div>
-                      <span className="text-[9px] text-slate-400 block uppercase">Condition</span>
-                      <span className="font-bold text-slate-200">{prop.overallCondition}%</span>
-                    </div>
-                    <div>
-                      <span className="text-[9px] text-slate-400 block uppercase">Expenses</span>
-                      <span className="font-bold text-rose-400">{formatCurrency(prop.monthlyExpenses)}/mo</span>
-                    </div>
-                    <div>
-                      <span className="text-[9px] text-slate-400 block uppercase">Appreciation</span>
-                      <span className="font-bold text-indigo-400">+4.5%/yr</span>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setSelectedPropertyToAnalyze(prop);
-                      setNegotiationOffer(prop.askingPrice);
-                    }}
-                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-95"
-                  >
-                    <Check className="w-4 h-4 text-emerald-400" />
-                    <span>Analyze & Make Offer</span>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* CASH FLOW ANALYSIS & DEAL NEGOTIATOR MODAL */}
-      {selectedPropertyToAnalyze && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-              <div>
-                <span className="text-[10px] font-bold text-indigo-400 uppercase">
-                  Deal Negotiator & Underwriting
-                </span>
-                <h3 className="text-base font-bold text-slate-100">{selectedPropertyToAnalyze.address}</h3>
-              </div>
-              <button
-                onClick={() => setSelectedPropertyToAnalyze(null)}
-                className="p-1 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Offer Slider */}
-            <div className="bg-slate-800/50 p-3.5 rounded-2xl border border-slate-800 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-300">Offer Price</span>
-                <span className="text-base font-bold text-emerald-400">
-                  {formatCurrency(negotiationOffer)}
-                </span>
-              </div>
-
-              <input
-                type="range"
-                min={Math.round(selectedPropertyToAnalyze.askingPrice * 0.7)}
-                max={Math.round(selectedPropertyToAnalyze.askingPrice * 1.15)}
-                step={1000}
-                value={negotiationOffer}
-                onChange={(e) => setNegotiationOffer(Number(e.target.value))}
-                className="w-full accent-emerald-500 cursor-pointer"
-              />
-
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-slate-400">Asking: {formatCurrency(selectedPropertyToAnalyze.askingPrice)}</span>
-                <span className={`font-semibold ${getSellerReaction(negotiationOffer, selectedPropertyToAnalyze.askingPrice).color}`}>
-                  Seller: {getSellerReaction(negotiationOffer, selectedPropertyToAnalyze.askingPrice).text}
-                </span>
-              </div>
-            </div>
-
-            {/* Down Payment % Selector */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-400">Down Payment Structure</label>
-              <div className="grid grid-cols-4 gap-2">
-                {[10, 20, 50, 100].map((pct) => (
-                  <button
-                    key={pct}
-                    onClick={() => setDownPaymentPercent(pct)}
-                    className={`py-1.5 rounded-xl text-xs font-semibold border cursor-pointer transition ${
-                      downPaymentPercent === pct
-                        ? 'bg-indigo-600 text-white border-indigo-500'
-                        : 'bg-slate-800 text-slate-300 border-slate-700'
-                    }`}
-                  >
-                    {pct === 100 ? 'All Cash' : `${pct}%`}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Estimated Cash Flow Calculation */}
-            {(() => {
-              const downPaymentAmount = Math.round(negotiationOffer * (downPaymentPercent / 100));
-              const loanPrincipal = negotiationOffer - downPaymentAmount;
-              const closingCosts = Math.round(negotiationOffer * 0.03);
-              const totalInitialCash = downPaymentAmount + closingCosts;
-
-              const monthlyMortgage = loanPrincipal > 0
-                ? Math.round((loanPrincipal * (0.065 / 12) * Math.pow(1 + 0.065 / 12, 360)) / (Math.pow(1 + 0.065 / 12, 360) - 1))
-                : 0;
-
-              const monthlyNet = selectedPropertyToAnalyze.estimatedRent - selectedPropertyToAnalyze.monthlyExpenses - monthlyMortgage;
-              const annualCashFlow = monthlyNet * 12;
-              const estimatedRoi = totalInitialCash > 0 ? ((annualCashFlow / totalInitialCash) * 100).toFixed(1) : '0';
-
-              return (
-                <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700/80 space-y-2">
-                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                    <div>
-                      <span className="text-[10px] text-slate-400">CASH NEEDED</span>
-                      <div className="font-bold text-slate-100">{formatCurrency(totalInitialCash)}</div>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400">EST. CASH FLOW</span>
-                      <div className={`font-bold ${monthlyNet >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {formatCurrency(monthlyNet)}/mo
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400">EST. CASH-ON-CASH</span>
-                      <div className="font-bold text-indigo-400">{estimatedRoi}%</div>
-                    </div>
-                  </div>
-
-                  <div className="pt-2">
-                    <button
-                      onClick={() => {
-                        const sellerChance = getSellerReaction(negotiationOffer, selectedPropertyToAnalyze.askingPrice).chance;
-                        if (Math.random() * 100 > sellerChance) {
-                          alert('Seller rejected the low offer! Try increasing your offer price or negotiation skill.');
-                          return;
-                        }
-                        if (buyProperty(selectedPropertyToAnalyze.id, negotiationOffer, downPaymentPercent, 30)) {
-                          setSelectedPropertyToAnalyze(null);
-                          setActiveTab('portfolio');
-                        }
-                      }}
-                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm rounded-2xl shadow-lg cursor-pointer transition active:scale-95 flex items-center justify-center gap-2"
-                    >
-                      <span>Submit Purchase Contract</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-        </div>
-      )}
 
       {/* INSPECTION & RENOVATION MODAL */}
       {inspectingProperty && (

@@ -1,6 +1,6 @@
 {
-  "name": "Hustle & Empire: Life & Investment Simulator",
-  "description": "A mobile life, hustle, real estate, and investment simulator where you start broke and build a financial empire.",
+  "name": "Hustle Empire",
+  "description": "A mobile life, hustle, real estate, and investment tycoon simulator where you build a financial empire from the ground up.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

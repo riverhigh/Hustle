@@ -57,7 +57,7 @@ export const HustleView: React.FC = () => {
 
   const latestNews = newsFeed && newsFeed.length > 0 ? newsFeed[0] : null;
 
-  const [activeSection, setActiveSection] = useState<'businesses' | 'education' | 'gigs'>('businesses');
+  const [activeSection, setActiveSection] = useState<'businesses' | 'education'>('businesses');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [payTypeFilter, setPayTypeFilter] = useState<'all' | 'instant' | 'weekly'>('all');
   const [showNewBizModal, setShowNewBizModal] = useState<boolean>(false);
@@ -179,7 +179,30 @@ export const HustleView: React.FC = () => {
         </div>
       </div>
 
-      {/* Section Switcher (Enterprises vs Education vs Gigs) */}
+      {/* WorkForce Gigs Moved to Phone Banner */}
+      <div 
+        onClick={() => openPhoneApp('jobs')}
+        className="bg-gradient-to-r from-emerald-950/40 via-[#141417] to-slate-900 border border-emerald-500/20 hover:border-emerald-500/40 rounded-2xl p-3 flex items-center justify-between cursor-pointer transition shadow-md group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition">
+            <Briefcase className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-white">WorkForce Jobs & Gigs</span>
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-1.5 py-0.5 rounded">Phone App</span>
+            </div>
+            <p className="text-[11px] text-slate-400">Apply for salaried careers & instant cash shifts on your smartphone</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-700/40 px-3 py-1.5 rounded-xl group-hover:bg-emerald-900/60 transition">
+          <span>Open Phone</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </div>
+      </div>
+
+      {/* Section Switcher (Enterprises vs Education) */}
       <div className="flex bg-[#141417] p-1.5 rounded-2xl border border-white/5">
         <button
           onClick={() => setActiveSection('businesses')}
@@ -205,22 +228,9 @@ export const HustleView: React.FC = () => {
           <GraduationCap className="w-4 h-4" />
           <span>Education ({playerDegrees.length})</span>
         </button>
-
-        <button
-          onClick={() => setActiveSection('gigs')}
-          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-            activeSection === 'gigs'
-              ? 'bg-emerald-600 text-white shadow-md'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <Briefcase className="w-4 h-4" />
-          <span>All Gigs ({availableJobs.length})</span>
-        </button>
       </div>
 
-      {/* GIGS SECTION */}
-      {activeSection === 'gigs' && (
+      {false && (
         <div className="space-y-3">
           {/* Job Type Filter Bar */}
           <div className="flex bg-slate-900/80 p-1 rounded-xl border border-slate-800 text-xs">

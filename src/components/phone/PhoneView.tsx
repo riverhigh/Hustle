@@ -36,7 +36,8 @@ import {
   Briefcase,
   Newspaper,
   Camera,
-  Music
+  Music,
+  Sliders
 } from 'lucide-react';
 import { FarbesApp } from './FarbesApp';
 import { VipClubApp } from './VipClubApp';
@@ -46,6 +47,8 @@ import { StocksApp } from './StocksApp';
 import { TakTakApp } from './TakTakApp';
 import { SGramApp } from './SGramApp';
 import { NewsApp } from './NewsApp';
+import { MLSApp } from './MLSApp';
+import { AdminPage } from '../admin/AdminPage';
 
 interface ScannedDeal {
   id: string;
@@ -430,6 +433,8 @@ export const PhoneView: React.FC = () => {
                 {phoneActiveApp === 'auctions' && '🔨 Distressed Auctions'}
                 {phoneActiveApp === 'farbes' && '🏆 Farbes 100 Richest'}
                 {phoneActiveApp === 'vip' && '👑 VIP Club & Luxury'}
+                {phoneActiveApp === 'mls' && '🏡 MLS Real Estate Portal'}
+                {phoneActiveApp === 'admin' && '⚡ Admin God Mode'}
               </span>
 
               <button
@@ -632,6 +637,28 @@ export const PhoneView: React.FC = () => {
                       <Crown className="w-5 h-5" />
                     </div>
                     <span className="text-[10px] font-bold text-slate-200">VIP Club</span>
+                  </button>
+
+                  {/* App 11: MLS Real Estate */}
+                  <button
+                    onClick={() => setPhoneActiveApp('mls')}
+                    className="flex flex-col items-center gap-1 group cursor-pointer active:scale-95 transition"
+                  >
+                    <div className="w-12 h-12 rounded-[20px] bg-gradient-to-b from-indigo-600 to-indigo-950 border border-indigo-400/50 shadow-xl flex items-center justify-center text-white group-hover:scale-105 transition">
+                      <Building2 className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] font-bold text-indigo-300">MLS Market</span>
+                  </button>
+
+                  {/* App 12: Admin God Mode */}
+                  <button
+                    onClick={() => setPhoneActiveApp('admin')}
+                    className="flex flex-col items-center gap-1 group cursor-pointer active:scale-95 transition"
+                  >
+                    <div className="w-12 h-12 rounded-[20px] bg-gradient-to-b from-rose-600 to-slate-950 border border-rose-500/50 shadow-xl flex items-center justify-center text-white group-hover:scale-105 transition">
+                      <Sliders className="w-5 h-5 text-rose-300" />
+                    </div>
+                    <span className="text-[10px] font-black text-rose-400">Admin</span>
                   </button>
                 </div>
               </div>
@@ -923,6 +950,18 @@ export const PhoneView: React.FC = () => {
           {/* SCREEN 9: NEWS APP */}
           {phoneActiveApp === 'news' && (
             <NewsApp />
+          )}
+
+          {/* SCREEN 10: MLS REAL ESTATE APP */}
+          {phoneActiveApp === 'mls' && (
+            <MLSApp onBack={() => setPhoneActiveApp('home')} />
+          )}
+
+          {/* SCREEN 11: ADMIN GOD MODE */}
+          {phoneActiveApp === 'admin' && (
+            <div className="flex-1 overflow-y-auto no-scrollbar">
+              <AdminPage onBack={() => setPhoneActiveApp('home')} />
+            </div>
           )}
         </div>
 

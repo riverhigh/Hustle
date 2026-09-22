@@ -6,11 +6,6 @@ import { GEM_BUNDLES, GemBundle } from './src/constants/gemBundles';
 
 dotenv.config();
 
-// Ensure DISABLE_HMR default matches AI Studio platform guidelines for custom servers
-if (process.env.DISABLE_HMR === undefined) {
-  process.env.DISABLE_HMR = 'true';
-}
-
 const app = express();
 const PORT = 3000;
 
@@ -312,12 +307,8 @@ app.post('/api/paystack/verify', async (req, res) => {
 
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
-    const isHmrDisabled = process.env.DISABLE_HMR === 'true';
     const vite = await createViteServer({
-      server: {
-        middlewareMode: true,
-        hmr: isHmrDisabled ? false : true,
-      },
+      server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -330,7 +321,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+    console.log(`Server running on http://localhost:${PORT}`);
   });
 }
 

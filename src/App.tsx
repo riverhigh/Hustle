@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GameProvider, useGame } from './context/GameContext';
 import { MainMenuView } from './components/menu/MainMenuView';
 import { HeaderDashboard } from './components/common/HeaderDashboard';
@@ -16,6 +16,7 @@ import { FinanceView } from './components/finance/FinanceView';
 import { SelfView } from './components/self/SelfView';
 import { PhoneView } from './components/phone/PhoneView';
 import { PullToRefresh } from './components/pwa/PullToRefresh';
+import { AdminPage } from './components/admin/AdminPage';
 
 const MainAppContent: React.FC = () => {
   const { activeTab, isStoreModalOpen, setIsStoreModalOpen, isPhoneOpen, setIsPhoneOpen } = useGame();
@@ -66,7 +67,52 @@ const MainAppContent: React.FC = () => {
 };
 
 const AppRouter: React.FC = () => {
-  const { activeSlotId } = useGame();
+  const { activeSlotId, loadGameSlot } = useGame();
+  const [isAdminRoute, setIsAdminRoute] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return (
+        window.location.pathname.startsWith('/admin') ||
+        window.location.hash === '#admin' ||
+        window.location.search.includes('admin=1')
+      );
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setIsAdminRoute(
+        window.location.pathname.startsWith('/admin') ||
+        window.location.hash === '#admin' ||
+        window.location.search.includes('admin=1')
+      );
+    };
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('hashchange', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handlePopState);
+    };
+  }, []);
+
+  if (isAdminRoute) {
+    return (
+      <div className="min-h-screen bg-[#070709] text-slate-100 font-sans flex justify-center selection:bg-blue-600 selection:text-white">
+        <div className="w-full max-w-md sm:max-w-xl md:max-w-2xl min-h-screen flex flex-col bg-black shadow-2xl relative">
+          <AdminPage
+            onBack={() => {
+              if (window.location.hash === '#admin') {
+                window.location.hash = '';
+              } else if (window.location.pathname.startsWith('/admin')) {
+                window.history.pushState(null, '', '/');
+              }
+              setIsAdminRoute(false);
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (activeSlotId === null) {
     return (

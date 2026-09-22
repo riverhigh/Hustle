@@ -375,7 +375,9 @@ export type PhoneAppId =
   | 'finance'
   | 'taktak'
   | 'sgram'
-  | 'news';
+  | 'news'
+  | 'mls'
+  | 'admin';
 
 export interface SocialProfile {
   taktakFollowers: number;

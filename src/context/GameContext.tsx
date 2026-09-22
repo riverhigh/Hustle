@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo, useRef } from 'react';
 import {
   PlayerProfile,
   JobOpportunity,
@@ -188,171 +188,148 @@ interface GameContextType {
   isDailySummaryOpen: boolean;
   setIsDailySummaryOpen: (open: boolean) => void;
   simulateNextDay: () => void;
+
+  // Admin & God Mode Control
+  setPlayer: React.Dispatch<React.SetStateAction<PlayerProfile>>;
+  setBankAccounts: React.Dispatch<React.SetStateAction<BankAccount[]>>;
+  setCreditCards: React.Dispatch<React.SetStateAction<CreditCard[]>>;
+  setLoans: React.Dispatch<React.SetStateAction<Loan[]>>;
+  setOwnedProperties: React.Dispatch<React.SetStateAction<Property[]>>;
+  setMarketProperties: React.Dispatch<React.SetStateAction<Property[]>>;
+  setOwnedBusinesses: React.Dispatch<React.SetStateAction<Business[]>>;
+  setAutoCollectRentUnlocked: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const LOCAL_STORAGE_KEY = 'hustle_empire_sim_state_v1';
+
+function getInitialSlotSession(): (1 | 2 | 3) | null {
+  try {
+    const savedSession = localStorage.getItem('hustle_sim_current_session_slot');
+    if (savedSession) {
+      const id = parseInt(savedSession, 10);
+      if (id === 1 || id === 2 || id === 3) {
+        const meta = getAllSlotsMeta();
+        const target = meta.find((s) => s.slotId === id);
+        if (target && !target.isEmpty) {
+          return id as 1 | 2 | 3;
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function getSlotStorageValue<T>(slotId: (1 | 2 | 3) | null, key: string, fallback: T): T {
+  if (!slotId) return fallback;
+  try {
+    const raw = localStorage.getItem(getSlotStorageKey(slotId, key));
+    if (raw !== null && raw !== undefined) {
+      return JSON.parse(raw);
+    }
+  } catch {}
+  return fallback;
+}
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // Save Slot & Menu system with persistent session auto-restore
-  const [activeSlotId, setActiveSlotId] = useState<(1 | 2 | 3) | null>(() => {
-    try {
-      const savedSession = localStorage.getItem('hustle_sim_current_session_slot');
-      if (savedSession) {
-        const id = parseInt(savedSession, 10);
-        if (id === 1 || id === 2 || id === 3) {
-          const meta = getAllSlotsMeta();
-          const target = meta.find((s) => s.slotId === id);
-          if (target && !target.isEmpty) {
-            return id as 1 | 2 | 3;
-          }
-        }
-      }
-    } catch {
-      // ignore
-    }
-    return null;
-  });
+  const initialRestoredSlot = useMemo(() => getInitialSlotSession(), []);
+  const [activeSlotId, setActiveSlotId] = useState<(1 | 2 | 3) | null>(initialRestoredSlot);
+  const isSlotLoadedRef = useRef<boolean>(initialRestoredSlot !== null);
   const [slotsMeta, setSlotsMeta] = useState<SaveSlotMeta[]>(() => getAllSlotsMeta());
 
   const refreshSlotsMeta = useCallback(() => {
     setSlotsMeta(getAllSlotsMeta());
   }, []);
 
-  // Load initial state from LocalStorage or defaults
-  const [player, setPlayer] = useState<PlayerProfile>(INITIAL_PLAYER);
+  // Load initial state from active slot (if restored) or defaults
+  const [player, setPlayer] = useState<PlayerProfile>(() => {
+    return getSlotStorageValue(initialRestoredSlot, 'player', INITIAL_PLAYER);
+  });
 
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_bank');
-      if (saved) {
-        const parsed: any[] = JSON.parse(saved);
-        const filtered = parsed.filter((a) => a.id === 'checking' || a.id === 'savings');
-        if (filtered.length >= 2) return filtered;
-      }
-      return [
-        { id: 'checking', name: 'Standard Checking', balance: 0, interestRate: 0.001 },
-        { id: 'savings', name: 'High-Yield Savings (HYSA)', balance: 0, interestRate: 0.045 },
-      ];
-    } catch {
-      return [
-        { id: 'checking', name: 'Standard Checking', balance: 0, interestRate: 0.001 },
-        { id: 'savings', name: 'High-Yield Savings (HYSA)', balance: 0, interestRate: 0.045 },
-      ];
-    }
+    return getSlotStorageValue(initialRestoredSlot, 'bank', [
+      { id: 'checking', name: 'Standard Checking', balance: 0, interestRate: 0.001 },
+      { id: 'savings', name: 'High-Yield Savings (HYSA)', balance: 0, interestRate: 0.045 },
+    ]);
   });
 
   const [creditCards, setCreditCards] = useState<CreditCard[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_cards');
-      return saved
-        ? JSON.parse(saved)
-        : [
-            {
-              id: 'card_starter',
-              name: 'FreshStart Secured Card',
-              tier: 1,
-              limit: 500,
-              balance: 0,
-              interestRate: 0.24,
-              rewardsRate: 0.0,
-              unlocked: true,
-              minPayment: 25,
-            },
-            {
-              id: 'card_silver',
-              name: 'Silver Freedom Card',
-              tier: 2,
-              limit: 2500,
-              balance: 0,
-              interestRate: 0.19,
-              rewardsRate: 0.015,
-              unlocked: false,
-              minPayment: 50,
-            },
-            {
-              id: 'card_gold',
-              name: 'Apex Gold Preferred',
-              tier: 3,
-              limit: 10000,
-              balance: 0,
-              interestRate: 0.15,
-              rewardsRate: 0.03,
-              unlocked: false,
-              minPayment: 150,
-            },
-            {
-              id: 'card_black',
-              name: 'Centurion Obsidian Reserve',
-              tier: 4,
-              limit: 50000,
-              balance: 0,
-              interestRate: 0.11,
-              rewardsRate: 0.05,
-              unlocked: false,
-              minPayment: 500,
-            },
-          ];
-    } catch {
-      return [];
-    }
+    return getSlotStorageValue(initialRestoredSlot, 'cards', [
+      {
+        id: 'card_starter',
+        name: 'FreshStart Secured Card',
+        tier: 1,
+        limit: 500,
+        balance: 0,
+        interestRate: 0.24,
+        rewardsRate: 0.0,
+        unlocked: true,
+        minPayment: 25,
+      },
+      {
+        id: 'card_silver',
+        name: 'Silver Freedom Card',
+        tier: 2,
+        limit: 2500,
+        balance: 0,
+        interestRate: 0.19,
+        rewardsRate: 0.015,
+        unlocked: false,
+        minPayment: 50,
+      },
+      {
+        id: 'card_gold',
+        name: 'Apex Gold Preferred',
+        tier: 3,
+        limit: 10000,
+        balance: 0,
+        interestRate: 0.15,
+        rewardsRate: 0.03,
+        unlocked: false,
+        minPayment: 150,
+      },
+      {
+        id: 'card_black',
+        name: 'Centurion Obsidian Reserve',
+        tier: 4,
+        limit: 50000,
+        balance: 0,
+        interestRate: 0.11,
+        rewardsRate: 0.05,
+        unlocked: false,
+        minPayment: 500,
+      },
+    ]);
   });
 
   const [loans, setLoans] = useState<Loan[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_loans');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
+    return getSlotStorageValue(initialRestoredSlot, 'loans', []);
   });
 
   const [availableJobs, setAvailableJobs] = useState<JobOpportunity[]>(INITIAL_JOBS);
   const [educationCourses] = useState<EducationCourse[]>(EDUCATION_COURSES);
   const [ownedBusinesses, setOwnedBusinesses] = useState<Business[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_businesses');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
+    return getSlotStorageValue(initialRestoredSlot, 'businesses', []);
   });
 
   const [marketProperties, setMarketProperties] = useState<Property[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_props_market');
-      return saved ? JSON.parse(saved) : INITIAL_PROPERTIES_MARKET;
-    } catch {
-      return INITIAL_PROPERTIES_MARKET;
-    }
+    return getSlotStorageValue(initialRestoredSlot, 'props_market', INITIAL_PROPERTIES_MARKET);
   });
 
   const [ownedProperties, setOwnedProperties] = useState<Property[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_props_owned');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
+    return getSlotStorageValue(initialRestoredSlot, 'props_owned', []);
   });
 
   const [stocks, setStocks] = useState<StockItem[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_stocks');
-      return saved ? JSON.parse(saved) : INITIAL_STOCKS;
-    } catch {
-      return INITIAL_STOCKS;
-    }
+    return getSlotStorageValue(initialRestoredSlot, 'stocks', INITIAL_STOCKS);
   });
 
   const [portfolio, setPortfolio] = useState<StockHolding[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_portfolio');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
+    return getSlotStorageValue(initialRestoredSlot, 'portfolio', []);
   });
 
   const [newsFeed, setNewsFeed] = useState<NewsItem[]>(() => {
@@ -424,12 +401,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   });
 
   const [achievements, setAchievements] = useState<Achievement[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_achievements');
-      return saved ? JSON.parse(saved) : INITIAL_ACHIEVEMENTS;
-    } catch {
-      return INITIAL_ACHIEVEMENTS;
-    }
+    return getSlotStorageValue(initialRestoredSlot, 'achievements', INITIAL_ACHIEVEMENTS);
   });
 
   const [goals] = useState<Goal[]>(INITIAL_GOALS);
@@ -438,11 +410,21 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [feedbackQueue, setFeedbackQueue] = useState<ActionFeedbackItem[]>([]);
   const [activeTab, setActiveTab] = useState<'hustle' | 'properties' | 'finance' | 'market' | 'self'>('hustle');
   const [tutorialStep, setTutorialStep] = useState<number>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY + '_tutorial');
-    return saved ? parseInt(saved, 10) : 1; // 1 = show initial prompt
+    if (!initialRestoredSlot) return 1;
+    try {
+      const saved = localStorage.getItem(getSlotStorageKey(initialRestoredSlot, 'tutorial'));
+      return saved ? parseInt(saved, 10) : 1;
+    } catch {
+      return 1;
+    }
   });
   const [autoCollectRentUnlocked, setAutoCollectRentUnlocked] = useState<boolean>(() => {
-    return localStorage.getItem(LOCAL_STORAGE_KEY + '_autocollect') === 'true';
+    if (!initialRestoredSlot) return false;
+    try {
+      return localStorage.getItem(getSlotStorageKey(initialRestoredSlot, 'autocollect')) === 'true';
+    } catch {
+      return false;
+    }
   });
   const [isStoreModalOpen, setIsStoreModalOpen] = useState<boolean>(false);
   const [dailySummary, setDailySummary] = useState<DailySummaryReport | null>(null);
@@ -610,7 +592,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Synchronize active slot state with LocalStorage and update slot metadata
   useEffect(() => {
-    if (activeSlotId === null) return;
+    if (activeSlotId === null || !isSlotLoadedRef.current) return;
     try {
       localStorage.setItem(getSlotStorageKey(activeSlotId, 'player'), JSON.stringify(player));
       localStorage.setItem(getSlotStorageKey(activeSlotId, 'bank'), JSON.stringify(bankAccounts));
@@ -1354,11 +1336,6 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       jobIncome = Math.round(activeJob.weeklySalary / 7);
     }
 
-    // Baseline daily earnings for early game progression
-    if (bizRev === 0 && propRent === 0 && jobIncome === 0) {
-      jobIncome = Math.round(110 + Math.random() * 75);
-    }
-
     const totalRevenue = bizRev + propRent + jobIncome;
     const employeeWages = bizWages;
     const buildingRent = Math.max(10, Math.round(currentHousing.costMonthly / 30));
@@ -1403,6 +1380,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const energyRecovered = currentHousing.energyRestBonus;
     setPlayer((prev) => ({
       ...prev,
+      cash: endingCash,
       energy: Math.min(prev.maxEnergy, energyRecovered),
     }));
 
@@ -2749,6 +2727,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Load a save slot
   const loadGameSlot = useCallback((slotId: 1 | 2 | 3) => {
     try {
+      isSlotLoadedRef.current = true;
       const pRaw = localStorage.getItem(getSlotStorageKey(slotId, 'player'));
       const loadedPlayer: PlayerProfile = pRaw ? JSON.parse(pRaw) : INITIAL_PLAYER;
       if (typeof loadedPlayer.gems !== 'number') loadedPlayer.gems = 10;
@@ -2843,15 +2822,22 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     playerName: string, 
     startingBonus: 'energy' | 'cash' | 'credit' = 'cash'
   ) => {
+    isSlotLoadedRef.current = true;
     const trimmedName = playerName.trim() || 'Alex Vance';
     
     // Configure starting profile with selected perk
+    const startingCash = startingBonus === 'cash' ? 2500 : 250;
+    const startingEnergy = startingBonus === 'energy' ? 120 : 100;
+    const startingMaxEnergy = startingBonus === 'energy' ? 120 : 100;
+    const startingCredit = startingBonus === 'credit' ? 720 : 650;
+
     const newPlayer: PlayerProfile = {
       ...INITIAL_PLAYER,
       name: trimmedName,
-      cash: startingBonus === 'cash' ? 150 : 100,
-      energy: startingBonus === 'energy' ? 90 : 80,
-      creditScore: startingBonus === 'credit' ? 580 : 550,
+      cash: startingCash,
+      energy: startingEnergy,
+      maxEnergy: startingMaxEnergy,
+      creditScore: startingCredit,
     };
 
     const initialBank: BankAccount[] = [
@@ -3257,6 +3243,15 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isDailySummaryOpen,
         setIsDailySummaryOpen,
         simulateNextDay,
+
+        setPlayer,
+        setBankAccounts,
+        setCreditCards,
+        setLoans,
+        setOwnedProperties,
+        setMarketProperties,
+        setOwnedBusinesses,
+        setAutoCollectRentUnlocked,
       }}
     >
       {children}

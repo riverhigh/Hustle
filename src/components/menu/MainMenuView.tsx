@@ -28,7 +28,8 @@ import {
   Download,
   RotateCw,
   Trophy,
-  ArrowRight
+  ArrowRight,
+  Sliders
 } from 'lucide-react';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { usePWAUpdate } from '../../hooks/usePWAUpdate';
@@ -666,6 +667,19 @@ export const MainMenuView: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Developer Admin Console Access */}
+        <div className="pt-4 pb-2 flex justify-center">
+          <button
+            onClick={() => {
+              window.location.hash = '#admin';
+            }}
+            className="text-[11px] text-slate-500 hover:text-slate-300 font-semibold flex items-center gap-1.5 py-1.5 px-3 rounded-lg hover:bg-white/5 transition cursor-pointer"
+          >
+            <Sliders className="w-3.5 h-3.5" />
+            <span>Admin / God Mode Console</span>
+          </button>
+        </div>
       </div>
 
       {/* Delete Slot Confirmation Modal */}

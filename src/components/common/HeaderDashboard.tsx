@@ -12,7 +12,9 @@ import {
   Save, 
   Download, 
   RotateCw, 
-  Smartphone 
+  Smartphone,
+  Sliders,
+  DollarSign
 } from 'lucide-react';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { usePWAUpdate } from '../../hooks/usePWAUpdate';
@@ -58,14 +60,19 @@ export const HeaderDashboard: React.FC<HeaderDashboardProps> = ({ onOpenRest }) 
 
   return (
     <header className="sticky top-0 z-40 bg-black/95 backdrop-blur-xl border-b border-white/5 px-4 pt-3.5 pb-3 select-none space-y-3">
-      {/* Top Bar: Welcome, Name, Day Pill, and Quick Tools */}
+      {/* Top Bar: Cash Balance, Name, Day Pill, and Quick Tools */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-none">
-            Welcome,
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-none flex items-center gap-1">
+            <span>{formatCurrency(player.cash)}</span>
           </h1>
-          <p className="text-sm font-bold text-slate-400 mt-1">
-            {player.name}
+          <p className="text-xs font-bold text-slate-400 mt-1 flex items-center gap-1.5">
+            <span className="text-white font-semibold">{player.name}</span>
+            <span className="text-slate-600">•</span>
+            <span className="text-emerald-400 font-semibold flex items-center gap-0.5">
+              <DollarSign className="w-3 h-3 inline" />
+              Cash Funds
+            </span>
           </p>
         </div>
 
@@ -271,6 +278,21 @@ export const HeaderDashboard: React.FC<HeaderDashboardProps> = ({ onOpenRest }) 
                   <RotateCw className={`w-4 h-4 text-indigo-400 ${isChecking ? 'animate-spin' : ''}`} />
                   <span>{needRefresh ? 'Install Update' : 'Check for Updates'}</span>
                 </div>
+              </button>
+
+              {/* Admin God Mode Console */}
+              <button
+                onClick={() => {
+                  setShowSystemMenu(false);
+                  window.location.hash = '#admin';
+                }}
+                className="w-full flex items-center justify-between p-3.5 bg-rose-950/25 hover:bg-rose-950/40 rounded-2xl border border-rose-500/20 transition cursor-pointer text-left"
+              >
+                <div className="flex items-center gap-2.5 text-rose-300 text-xs font-bold">
+                  <Sliders className="w-4 h-4 text-rose-400" />
+                  <span>Admin God Mode Console</span>
+                </div>
+                <ArrowRight className="w-4 h-4 text-rose-400" />
               </button>
 
               {/* Exit to Main Menu */}
